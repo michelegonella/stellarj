@@ -1,0 +1,13 @@
+<project>
+	  <modelVersion>4.0.0</modelVersion>
+	    <groupId>com.consumimurigni</groupId>
+	      <artifactId>stellarj</artifactId>
+	      <version>0.1.0-SNAPSHOT</version>
+	      <packaging>pom</packaging>
+	       
+	        <modules>
+			    <module>stellarj-parent</module>
+			    <module>stellarj-core</module>
+			      </modules>
+	</project>
+
