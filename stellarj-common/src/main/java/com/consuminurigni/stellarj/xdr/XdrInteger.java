@@ -6,32 +6,17 @@ public abstract class XdrInteger extends Number {
 	private static final long serialVersionUID = 2483770288666595149L;
 
 	@Override
-	public int intValue() {
-		// TODO Auto-generated method stub
-		return 0;
-	}
-
-	@Override
-	public long longValue() {
-		// TODO Auto-generated method stub
-		return 0;
-	}
-
-	@Override
 	public float floatValue() {
-		// TODO Auto-generated method stub
-		return 0;
+		throw new UnsupportedOperationException("unimplemented");
 	}
 
 	@Override
 	public double doubleValue() {
-		// TODO Auto-generated method stub
-		return 0;
+		throw new UnsupportedOperationException("unimplemented");
 	}
 
-	public BigInteger asBigInteger() {
-		return new BigInteger("34613645132864313256431286341325465135");
-	}
+	public abstract BigInteger asBigInteger();
+
 	
 	public enum Rounding
 	{

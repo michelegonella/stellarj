@@ -6,8 +6,6 @@ package com.consumimurigni.stellarj.scp.xdr;
 
 import java.io.IOException;
 import java.math.BigInteger;
-import java.sql.Wrapper;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -155,7 +153,7 @@ public void forAllNodes(Consumer<NodeID> proc)
 // weight of the first occurrence
 public Uint64 getNodeWeight(NodeID nodeID)
 {
-    BigInteger n = BigInteger.valueOf(getThreshold().getUint32());
+    BigInteger n = getThreshold().asBigInteger();
     BigInteger d = BigInteger.valueOf(getInnerSets().length + getValidators().length);
 //    Uint64 res = new Uint64();
 
@@ -180,7 +178,7 @@ public Uint64 getNodeWeight(NodeID nodeID)
 
 private boolean isQuorumSliceInternal(NodeSet nodeSet)
 {
-    int thresholdLeft = getThreshold().getUint32();
+    int thresholdLeft = getThreshold().intValue();
     for (PublicKey validator : getValidators())
     {
     	//TODO ugly contains() replace with set/list of elements implementing equals
@@ -218,14 +216,14 @@ private boolean isQuorumSlice(NodeSet nodeSet)
 private boolean isVBlockingInternal(NodeSet nodeSet)
 {
     // There is no v-blocking set for {\empty}
-    if (getThreshold().eq(0))
+    if (getThreshold().eqZero())
     {
         return false;
     }
 
     int leftTillBlock =
         (int)((1 + getValidators().length + getInnerSets().length) -
-              getThreshold().getUint32());
+              getThreshold().intValue());
 
     for (PublicKey validator : getValidators())
     {
@@ -339,7 +337,7 @@ public boolean isQuorum(Map<NodeID, SCPEnvelope> mLatestEnvelopes, final Functio
 private NodeSet findClosestVBlocking(NodeSet nodes, @Nullable NodeID excluded)
 {
     int leftTillBlock =
-        ((1 + getValidators().length + getInnerSets().length) - getThreshold().getUint32());
+        ((1 + getValidators().length + getInnerSets().length) - getThreshold().intValue());
 
     NodeSet res = new NodeSet();
 
@@ -408,7 +406,7 @@ private NodeSet findClosestVBlocking(NodeSet nodes, @Nullable NodeID excluded)
 public static SCPQuorumSet buildSingletonQSet(NodeID nodeID)
 {
     SCPQuorumSet qSet = new SCPQuorumSet();
-    qSet.setThreshold(new Uint32(1));
+    qSet.setThreshold(Uint32.ofPositiveInt(1));
     qSet.setValidators(new PublicKey[] {nodeID.getNodeID()});
     return qSet;
 }

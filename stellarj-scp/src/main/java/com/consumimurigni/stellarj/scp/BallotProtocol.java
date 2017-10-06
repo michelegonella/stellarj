@@ -35,6 +35,7 @@ import com.consuminurigni.stellarj.xdr.Uint32;
 import com.consuminurigni.stellarj.xdr.Value;
 
 public class BallotProtocol {
+	private static final Logger log = LogManager.getLogger();
 
 	static final int MAX_ADVANCE_SLOT_RECURSION = 50;
 
@@ -70,6 +71,182 @@ public class BallotProtocol {
 		this.mCurrentMessageLevel = 0;
 	}
 
+	public EnvelopeState processEnvelope(SCPEnvelope envelope, boolean self)
+	{
+	    EnvelopeState res = EnvelopeState.INVALID;
+	    Assert.assertTrue(envelope.getStatement().getSlotIndex().eq(mSlot.getSlotIndex()));
+
+	    SCPStatement statement = envelope.getStatement();
+	    NodeID nodeID = statement.getNodeID();
+
+	    if (!isStatementSane(statement, self))
+	    {
+	        if (self)
+	        {
+	            log.error("SCP not sane statement from self, skipping  e: {}", mSlot.getSCP().envToStr(envelope));
+	        }
+
+	        return SCP.EnvelopeState.INVALID;
+	    }
+
+	    if (!isNewerStatement(nodeID, statement))
+	    {
+	        if (self)
+	        {
+	            log.error("SCP stale statement from self, skipping  e: {}", mSlot.getSCP().envToStr(envelope));
+	        }
+	        else
+	        {
+	            log.trace("SCP stale statement from self, skipping  i: {}", mSlot.getSlotIndex().getUint64());
+	        }
+
+	        return SCP.EnvelopeState.INVALID;
+	    }
+
+	    ValidationLevel validationRes = validateValues(statement);
+	    if (validationRes != SCPDriver.ValidationLevel.kInvalidValue)
+	    {
+	        boolean processed = false;
+
+	        if (mPhase != SCPPhase.SCP_PHASE_EXTERNALIZE)
+	        {
+	            if (validationRes == SCPDriver.ValidationLevel.kMaybeValidValue)
+	            {
+	                mSlot.setFullyValidated(false);
+	            }
+
+	            recordEnvelope(envelope);
+	            processed = true;
+	            advanceSlot(statement);
+	            res = SCP.EnvelopeState.VALID;
+	        }
+
+	        if (!processed)
+	        {
+	            // note: this handles also our own messages
+	            // in particular our final EXTERNALIZE message
+	            if (mPhase == SCPPhase.SCP_PHASE_EXTERNALIZE &&
+	                mCommit.getValue().equals(getWorkingBallot(statement).getValue()))
+	            {
+	                recordEnvelope(envelope);
+	                res = SCP.EnvelopeState.VALID;
+	            }
+	            else
+	            {
+	                if (self)
+	                {
+	    	            log.error("SCP externalize statement with invalid value from self, skipping e: {}", mSlot.getSCP().envToStr(envelope));
+	                }
+
+	                res = SCP.EnvelopeState.INVALID;
+	            }
+	        }
+	    }
+	    else
+	    {
+	        // If the value is not valid, we just ignore it.
+	        if (self)
+	        {
+	            log.error("SCP invalid value from self, skipping e: {}", mSlot.getSCP().envToStr(envelope));
+	        }
+	        else
+	        {
+	            log.trace("SCP invalid value i: {}", mSlot.getSlotIndex().getUint64());
+	        }
+
+	        res = SCP.EnvelopeState.INVALID;
+	    }
+	    return res;
+	}
+	
+	public void ballotProtocolTimerExpired()
+	{
+	    // don't abandon the ballot until we have heard from a slice
+	    if (Boolean.TRUE.equals(mHeardFromQuorum))
+	    {
+	        abandonBallot(Uint32.ZERO);
+	    }
+	    else
+	    {
+	        log.debug("SCP Waiting to hear from a slice.");
+	        startBallotProtocolTimer();
+	    }
+	}
+
+	public boolean abandonBallot(Uint32 n)
+	{
+	    log.debug("SCP BallotProtocol::abandonBallot");
+	    boolean res = false;
+	    Value v = mSlot.getLatestCompositeCandidate();
+	    if (v.isEmpty())
+	    {
+	        if (mCurrentBallot != null)
+	        {
+	            v = mCurrentBallot.getValue();
+	        }
+	    }
+	    if (! v.isEmpty())
+	    {
+	        if (n.eqZero())
+	        {
+	            res = bumpState(v, true);
+	        }
+	        else
+	        {
+	            res = bumpState(v, n);
+	        }
+	    }
+	    return res;
+	}
+
+	public boolean bumpState(Value value, boolean force)
+	{
+	    if (!force && (mCurrentBallot != null))
+	    {
+	        return false;
+	    }
+
+	    //SCPBallot newb;//?????????? C++ unused ?? bug ??
+
+	    Uint32 n = mCurrentBallot != null ? mCurrentBallot.getCounter().plus(1) : Uint32.ONE;
+
+	    return bumpState(value, n);
+	}
+
+	public boolean bumpState(Value value, Uint32 n)
+	{
+	    if (mPhase != SCPPhase.SCP_PHASE_PREPARE && mPhase != SCPPhase.SCP_PHASE_CONFIRM)
+	    {
+	        return false;
+	    }
+
+	    SCPBallot newb;
+
+	    if (mHighBallot != null)
+	    {
+	        // can only bump the counter if we committed to something already
+	    	newb = new SCPBallot(n, mHighBallot.getValue());
+	    }
+	    else
+	    {
+	    	newb = new SCPBallot(n, value);
+	    }
+
+	    log.debug("SCP BallotProtocol::bumpState  i: {} v: {}", mSlot.getSlotIndex().getUint64(), mSlot.getSCP().ballotToStr(newb));
+
+	    boolean updated = updateCurrentValue(newb);
+
+	    if (updated)
+	    {
+	        mSlot.getSCPDriver().startedBallotProtocol(mSlot.getSlotIndex(), newb);
+	        emitCurrentStateStatement();
+	    }
+
+	    return updated;
+	}
+
+
+	////////////////////////////////////////////////////////////////
 	boolean isNewerStatement(NodeID nodeID, SCPStatement st)
 	{
 		SCPEnvelope oldp = mLatestEnvelopes.get(nodeID);
@@ -174,94 +351,6 @@ public class BallotProtocol {
     mLatestEnvelopes.put(st.getNodeID(), env);
 	    mSlot.recordStatement(env.getStatement());
 	}
-private static final Logger log = LogManager.getLogger();
-	EnvelopeState processEnvelope(SCPEnvelope envelope, boolean self)
-	{
-	    EnvelopeState res = EnvelopeState.INVALID;
-	    Assert.assertTrue(envelope.getStatement().getSlotIndex().eq(mSlot.getSlotIndex()));
-
-	    SCPStatement statement = envelope.getStatement();
-	    NodeID nodeID = statement.getNodeID();
-
-	    if (!isStatementSane(statement, self))
-	    {
-	        if (self)
-	        {
-	            log.error("SCP not sane statement from self, skipping  e: {}", mSlot.getSCP().envToStr(envelope));
-	        }
-
-	        return SCP.EnvelopeState.INVALID;
-	    }
-
-	    if (!isNewerStatement(nodeID, statement))
-	    {
-	        if (self)
-	        {
-	            log.error("SCP stale statement from self, skipping  e: {}", mSlot.getSCP().envToStr(envelope));
-	        }
-	        else
-	        {
-	            log.trace("SCP stale statement from self, skipping  i: {}", mSlot.getSlotIndex().getUint64());
-	        }
-
-	        return SCP.EnvelopeState.INVALID;
-	    }
-
-	    ValidationLevel validationRes = validateValues(statement);
-	    if (validationRes != SCPDriver.ValidationLevel.kInvalidValue)
-	    {
-	        boolean processed = false;
-
-	        if (mPhase != SCPPhase.SCP_PHASE_EXTERNALIZE)
-	        {
-	            if (validationRes == SCPDriver.ValidationLevel.kMaybeValidValue)
-	            {
-	                mSlot.setFullyValidated(false);
-	            }
-
-	            recordEnvelope(envelope);
-	            processed = true;
-	            advanceSlot(statement);
-	            res = SCP.EnvelopeState.VALID;
-	        }
-
-	        if (!processed)
-	        {
-	            // note: this handles also our own messages
-	            // in particular our final EXTERNALIZE message
-	            if (mPhase == SCPPhase.SCP_PHASE_EXTERNALIZE &&
-	                mCommit.getValue().equals(getWorkingBallot(statement).getValue()))
-	            {
-	                recordEnvelope(envelope);
-	                res = SCP.EnvelopeState.VALID;
-	            }
-	            else
-	            {
-	                if (self)
-	                {
-	    	            log.error("SCP externalize statement with invalid value from self, skipping e: {}", mSlot.getSCP().envToStr(envelope));
-	                }
-
-	                res = SCP.EnvelopeState.INVALID;
-	            }
-	        }
-	    }
-	    else
-	    {
-	        // If the value is not valid, we just ignore it.
-	        if (self)
-	        {
-	            log.error("SCP invalid value from self, skipping e: {}", mSlot.getSCP().envToStr(envelope));
-	        }
-	        else
-	        {
-	            log.trace("SCP invalid value i: {}", mSlot.getSlotIndex().getUint64());
-	        }
-
-	        res = SCP.EnvelopeState.INVALID;
-	    }
-	    return res;
-	}
 	
 	boolean isStatementSane(SCPStatement st, boolean self)
 	{
@@ -281,17 +370,17 @@ private static final Logger log = LogManager.getLogger();
 
 	        isOK =
 	            isOK && 
-	            (p.getNH().eq(0) 
+	            (p.getNH().eqZero() 
 	            || 
-	            (p.getPrepared() != null && p.getNH().lteq(p.getPrepared().getCounter())));
+	            (p.getPrepared() != null && p.getNH().lte(p.getPrepared().getCounter())));
 
 	        // c != 0 -> c <= h <= b
 	        isOK = isOK && 
-	        		(p.getNC().eq(0) 
+	        		(p.getNC().eqZero() 
 	        		|| 
-	        		(p.getNH().neq(0) 
-	        			&& p.getBallot().getCounter().gteq(p.getNH()) 
-	        			&& p.getNH().gteq(p.getNC())));
+	        		(p.getNH().ne(0) 
+	        			&& p.getBallot().getCounter().gte(p.getNH()) 
+	        			&& p.getNH().gte(p.getNC())));
 
 	        if (!isOK)
 	        {
@@ -305,8 +394,8 @@ private static final Logger log = LogManager.getLogger();
 	        SCPStatementConfirm c = st.getPledges().getConfirm();
 	        // c <= h <= b
 	        res = c.getBallot().getCounter().gt(0);
-	        res = res && (c.getNH().lteq(c.getBallot().getCounter()));
-	        res = res && (c.getNCommit().lteq(c.getNH()));
+	        res = res && (c.getNH().lte(c.getBallot().getCounter()));
+	        res = res && (c.getNCommit().lte(c.getNH()));
 	        if (!res)
 	        {
 	            log.debug("SCP Malformed CONFIRM message");
@@ -318,7 +407,7 @@ private static final Logger log = LogManager.getLogger();
 	        SCPStatementExternalize e = st.getPledges().getExternalize();
 
 	        res = e.getCommit().getCounter().gt(0);
-	        res = res && e.getNH().gteq(e.getCommit().getCounter());
+	        res = res && e.getNH().gte(e.getCommit().getCounter());
 
 	        if (!res)
 	        {
@@ -333,77 +422,7 @@ private static final Logger log = LogManager.getLogger();
 	    return res;
 	}
 
-	boolean abandonBallot(Uint32 n)
-	{
-	    log.debug("SCP BallotProtocol::abandonBallot");
-	    boolean res = false;
-	    Value v = mSlot.getLatestCompositeCandidate();
-	    if (v.isEmpty())
-	    {
-	        if (mCurrentBallot != null)
-	        {
-	            v = mCurrentBallot.getValue();
-	        }
-	    }
-	    if (! v.isEmpty())
-	    {
-	        if (n.eq(0))
-	        {
-	            res = bumpState(v, true);
-	        }
-	        else
-	        {
-	            res = bumpState(v, n);
-	        }
-	    }
-	    return res;
-	}
 
-	boolean bumpState(Value value, boolean force)
-	{
-	    if (!force && (mCurrentBallot != null))
-	    {
-	        return false;
-	    }
-
-	    //SCPBallot newb;//?????????? C++ unused ?? bug ??
-
-	    Uint32 n = mCurrentBallot != null ? mCurrentBallot.getCounter().plus(1) : Uint32.ONE;
-
-	    return bumpState(value, n);
-	}
-
-	boolean bumpState(Value value, Uint32 n)
-	{
-	    if (mPhase != SCPPhase.SCP_PHASE_PREPARE && mPhase != SCPPhase.SCP_PHASE_CONFIRM)
-	    {
-	        return false;
-	    }
-
-	    SCPBallot newb;
-
-	    if (mHighBallot != null)
-	    {
-	        // can only bump the counter if we committed to something already
-	    	newb = new SCPBallot(n, mHighBallot.getValue());
-	    }
-	    else
-	    {
-	    	newb = new SCPBallot(n, value);
-	    }
-
-	    log.debug("SCP BallotProtocol::bumpState  i: {} v: {}", mSlot.getSlotIndex().getUint64(), mSlot.getSCP().ballotToStr(newb));
-
-	    boolean updated = updateCurrentValue(newb);
-
-	    if (updated)
-	    {
-	        mSlot.getSCPDriver().startedBallotProtocol(mSlot.getSlotIndex(), newb);
-	        emitCurrentStateStatement();
-	    }
-
-	    return updated;
-	}
 
 	// updates the local state based to the specificed ballot
 	// (that could be a prepared ballot) enforcing invariants
@@ -499,19 +518,6 @@ private static final Logger log = LogManager.getLogger();
 	        });
 	}
 
-	void ballotProtocolTimerExpired()
-	{
-	    // don't abandon the ballot until we have heard from a slice
-	    if (Boolean.TRUE.equals(mHeardFromQuorum))
-	    {
-	        abandonBallot(Uint32.ZERO);
-	    }
-	    else
-	    {
-	        log.debug("SCP Waiting to hear from a slice.");
-	        startBallotProtocolTimer();
-	    }
-	}
 
 	SCPStatement createStatement(SCPStatementType type)
 	{
@@ -636,7 +642,7 @@ private static final Logger log = LogManager.getLogger();
 	{
 	    if (mCurrentBallot != null)
 	    {
-	    	Assert.assertTrue(mCurrentBallot.getCounter().getUint32() != 0);
+	    	Assert.assertTrue(mCurrentBallot.getCounter().ne(0));
 	    }
 	    if (mPrepared != null && mPreparedPrime != null)
 	    {
@@ -987,8 +993,8 @@ private static final Logger log = LogManager.getLogger();
 	        SCPStatementConfirm c = Assert.assertNotNull(pl.getConfirm());
 	        if (areBallotsCompatible(ballot, c.getBallot()))
 	        {
-	            res = c.getNCommit().lteq(check.getFirst()) 
-	            	&& check.getSecond().lteq(c.getNH());//TODO more elegant single interval method
+	            res = c.getNCommit().lte(check.getLower()) 
+	            	&& check.getUpper().lte(c.getNH());//TODO more elegant single interval method
 	        }
 	    }
 	    break;
@@ -997,7 +1003,7 @@ private static final Logger log = LogManager.getLogger();
 	    	SCPStatementExternalize e = pl.getExternalize();
 	        if (areBallotsCompatible(ballot, e.getCommit()))
 	        {
-	            res = e.getCommit().getCounter().lteq(check.getFirst());
+	            res = e.getCommit().getCounter().lte(check.getLower());
 	        }
 	    }
 	    break;
@@ -1021,7 +1027,7 @@ private static final Logger log = LogManager.getLogger();
 	        mHighBallot = newH;
 	    }
 
-	    if (newC.getCounter().getUint32() != 0)
+	    if (newC.getCounter().ne(0))
 	    {
 	    	Assert.assertTrue(mCommit == null);
 	        mCommit = newC;
@@ -1050,27 +1056,27 @@ private static final Logger log = LogManager.getLogger();
 	    {
 
 	    	UInt32Interval cur;
-	        if (candidate.getFirst().eq(0))
+	        if (candidate.getLower().eqZero())
 	        {
 	            // first, find the high bound
 	            cur = new UInt32Interval(b, b);
 	        }
-	        else if (b.gt(candidate.getSecond())) // invalid
+	        else if (b.gt(candidate.getUpper())) // invalid
 	        {
 	            continue;
 	        }
 	        else
 	        {
-	        	cur = new UInt32Interval(b, candidate.getSecond());
+	        	cur = new UInt32Interval(b, candidate.getUpper());
 //	            cur.setFirst(b);
-//	            cur.setSecond(candidate.getSecond());
+//	            cur.setSecond(candidate.getUpper());
 	        }
 
 	        if (pred.test(cur))
 	        {
 	            candidate = cur;
 	        }
-	        else if (candidate.getFirst().neq(0))
+	        else if (candidate.getLower().ne(0))
 	        {
 	            // could not extend further
 	            break;
@@ -1144,7 +1150,7 @@ private static final Logger log = LogManager.getLogger();
 	    case SCP_ST_PREPARE:
 	    {
 	        SCPStatementPrepare prep = Assert.assertNotNull(hint.getPledges().getPrepare());
-	        if (prep.getNC().getUint32() != 0)
+	        if (prep.getNC().ne(0))
 	        {
 	            ballot = new SCPBallot(prep.getNH(), prep.getBallot().getValue());
 	        }
@@ -1191,9 +1197,9 @@ private static final Logger log = LogManager.getLogger();
 	                	SCPStatementPrepare p = Assert.assertNotNull(pl.getPrepare());
 	                    if (areBallotsCompatible(ballot, p.getBallot()))
 	                    {
-	                        if (p.getNC().getUint32() != 0)
+	                        if (p.getNC().ne(0))
 	                        {
-	                            res = p.getNC().lteq(cur.getFirst()) && cur.getSecond().lteq(p.getNH());
+	                            res = p.getNC().lte(cur.getLower()) && cur.getUpper().lte(p.getNH());
 	                        }
 	                    }
 	                }
@@ -1203,7 +1209,7 @@ private static final Logger log = LogManager.getLogger();
 	                	SCPStatementConfirm c = Assert.assertNotNull(pl.getConfirm());
 	                    if (areBallotsCompatible(ballot, c.getBallot()))
 	                    {
-	                        res = c.getNCommit().lteq(cur.getFirst());
+	                        res = c.getNCommit().lte(cur.getLower());
 	                    }
 	                }
 	                break;
@@ -1212,7 +1218,7 @@ private static final Logger log = LogManager.getLogger();
 	                	SCPStatementExternalize e =Assert.assertNotNull( pl.getExternalize());
 	                    if (areBallotsCompatible(ballot, e.getCommit()))
 	                    {
-	                        res = e.getCommit().getCounter().lteq(cur.getFirst());
+	                        res = e.getCommit().getCounter().lte(cur.getLower());
 	                    }
 	                }
 	                break;
@@ -1238,13 +1244,13 @@ private static final Logger log = LogManager.getLogger();
 
 	    boolean res = false;
 
-	    if (candidate.getFirst().getUint32() != 0)
+	    if (candidate.getLower().ne(0))
 	    {
 	        if (mPhase != SCPPhase.SCP_PHASE_CONFIRM ||
-	            candidate.getSecond().getUint32() > mHighBallot.getCounter().getUint32())
+	            candidate.getUpper().gt(mHighBallot.getCounter()))
 	        {
-	            SCPBallot c = new SCPBallot(candidate.getFirst(), ballot.getValue());
-	            SCPBallot h = new SCPBallot(candidate.getSecond(), ballot.getValue());
+	            SCPBallot c = new SCPBallot(candidate.getLower(), ballot.getValue());
+	            SCPBallot h = new SCPBallot(candidate.getUpper(), ballot.getValue());
 	            res = setAcceptCommit(c, h);
 	        }
 	    }
@@ -1356,7 +1362,7 @@ private static final Logger log = LogManager.getLogger();
 	                        }
 	                        else
 	                        {
-	                            res = n.neq(Uint32.UINT32_MAX);
+	                            res = n.ne(Uint32.UINT32_MAX);
 	                        }
 	                    }
 	                    return res;
@@ -1438,11 +1444,11 @@ private static final Logger log = LogManager.getLogger();
 	    UInt32Interval candidate = 
 	    findExtendedInterval(/*candidate, */boundaries, pred);
 
-	    boolean res = candidate.getFirst().getUint32() != 0;
+	    boolean res = candidate.getLower().ne(0);
 	    if (res)
 	    {
-	        SCPBallot c = new SCPBallot(candidate.getFirst(), ballot.getValue());
-	        SCPBallot h = new SCPBallot(candidate.getSecond(), ballot.getValue());
+	        SCPBallot c = new SCPBallot(candidate.getLower(), ballot.getValue());
+	        SCPBallot h = new SCPBallot(candidate.getUpper(), ballot.getValue());
 	        return setConfirmCommit(c, h);
 	    }
 	    return res;
@@ -1488,7 +1494,7 @@ private static final Logger log = LogManager.getLogger();
 	    break;
 	    case SCP_ST_CONFIRM:
 	    {
-	    	SCPStatementConfirm c = Assert.assertNotNull(st.getPledges().getConfirm());
+	    	SCPStatementConfirm c = st.getPledges().getConfirm();
 	        SCPBallot prepared = new SCPBallot(c.getNPrepared(), c.getBallot().getValue());
 	        res = areBallotsLessAndCompatible(ballot, prepared);
 	    }
@@ -1790,7 +1796,7 @@ void advanceSlot(SCPStatement hint)
                     boolean res;
                     if (st.getPledges().getDiscriminant() == SCPStatementType.SCP_ST_PREPARE)
                     {
-                        res = mCurrentBallot.getCounter().lteq( 
+                        res = mCurrentBallot.getCounter().lte( 
                               st.getPledges().getPrepare().getBallot().getCounter());
                     }
                     else
@@ -1856,7 +1862,7 @@ SCPDriver.ValidationLevel validateValues(SCPStatement st)
     {
         SCPStatementPrepare prep = st.getPledges().getPrepare();
         SCPBallot b = prep.getBallot();
-        if (b.getCounter().getUint32() != 0)
+        if (b.getCounter().ne(0))
         {
             values.add(prep.getBallot().getValue());
         }

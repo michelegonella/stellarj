@@ -1,5 +1,6 @@
 package com.consumimurigni.stellarj.crypto;
 
+import java.math.BigInteger;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
@@ -27,9 +28,5 @@ public class CryptoUtils {
 
 	public static HashingFunction sha256() {
 		return SHA256;
-	}
-	public static String hexAbbrev(byte[] hash) {//upto 4 bytes
-		// TODO Auto-generated method stub
-		return null;
 	}
 }

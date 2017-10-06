@@ -32,7 +32,8 @@ public class GsonTest {
 
 	@Test
 	public void testCustomNumber() {
-		Uint32 n  = new Uint32();
+		Uint32 n  = Uint32.ofPositiveInt(2147483647);
+		n = n.plus(2147483647);
 		Map<String, Object> m = new LinkedHashMap<>();
 		m.put("x", n);
 		Gson gson = GsonFactory.create();

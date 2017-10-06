@@ -21,7 +21,7 @@ public class QuorumSetUtils {
 	    	SCPQuorumSet it = qSet.getInnerSetAt(j);
 	        normalizeQSet(it);
 	        // merge singleton inner sets into validator list
-	        if (it.getThreshold().getUint32() == 1 && it.getValidators().length == 1 &&
+	        if (it.getThreshold().eqOne() && it.getValidators().length == 1 &&
 	            it.getInnerSets().length == 0)
 	        {
 	        	qSet.pushValidator(it.getValidators()[0]);
@@ -34,7 +34,7 @@ public class QuorumSetUtils {
 	    }
 
 	    // simplify quorum set if needed
-	    if (qSet.getThreshold().eq(1) && qSet.numValidators() == 0 && qSet.numInnerSets() == 1)
+	    if (qSet.getThreshold().eqOne() && qSet.numValidators() == 0 && qSet.numInnerSets() == 1)
 	    {
 	    	qSet.setStateFrom(qSet.getInnerSetAt(0));
 	    }

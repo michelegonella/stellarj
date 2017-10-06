@@ -59,7 +59,7 @@ public class NominationProtocol {
     public NominationProtocol(Slot slot)
 	{
 	  mSlot = slot;
-	  mRoundNumber = new Int32(0);
+	  mRoundNumber = Int32.of(0);
 	  mNominationStarted = false;
 	}
 
@@ -470,7 +470,7 @@ public class NominationProtocol {
 
         mPreviousValue = previousValue;
 
-        mRoundNumber.setInt32(mRoundNumber.getInt32()+1);//TODO ugly ++
+        mRoundNumber = mRoundNumber.plus(1);
         updateRoundLeaders();
 
         Value nominatingValue = new Value();
@@ -535,7 +535,7 @@ public class NominationProtocol {
     	JsonObject ret = new JsonObject();
     	JsonObject nomState = new JsonObject();
     	ret.add("nomination", nomState);
-        nomState.addProperty("roundnumber", mRoundNumber.getInt32());
+        nomState.addProperty("roundnumber", mRoundNumber.intValue());
         nomState.addProperty("started", mNominationStarted);
 
         JsonArray X = new JsonArray();

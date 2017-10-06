@@ -7,16 +7,16 @@ public class UInt32Interval {
 	private Uint32 upper;
 
 	public UInt32Interval(Uint32 low, Uint32 hi) {
-		Assert.assertTrue(hi.gteq(low));
+		Assert.assertTrue(hi.gte(low));
 		lower = low;
 		upper = hi;
 	}
 
-	public Uint32 getFirst() {
+	public Uint32 getLower() {
 		return lower;
 	}
 
-	public Uint32 getSecond() {
+	public Uint32 getUpper() {
 		return upper;
 	}
 

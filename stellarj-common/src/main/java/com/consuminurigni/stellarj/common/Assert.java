@@ -21,7 +21,7 @@ public class Assert {
 			log.fatal(ex);
 			System.err.println(Exceptions.toStackTrace(ex));
 		}
-		assert false;
+//		assert false;
 		throw e;
 	}
 

@@ -285,7 +285,7 @@ public class SCP {
 
 	private String ballotToStrInternal(SCPBallot ballot)
 	{
-		return "(" + ballot.getCounter().getUint32() + "," + getValueString(ballot.getValue()) + ")";
+		return "(" + ballot.getCounter().toString() + "," + getValueString(ballot.getValue()) + ")";
 	}
 
 	String ballotToStr(@Nullable SCPBallot ballot)
@@ -312,35 +312,35 @@ public class SCP {
 	    {
 	        SCPStatementPrepare p = st.getPledges().getPrepare();
 	        oss.append(" | PREPARE"
-	            + " | D: " + CryptoUtils.hexAbbrev(qSetHash.getHash())
+	            + " | D: " + qSetHash.hexAbbrev()
 	            + " | b: " + ballotToStr(p.getBallot())
 	            + " | p: " + ballotToStr(p.getPrepared())
-	            + " | p': " + ballotToStr(p.getPreparedPrime()) + " | c.n: " + p.getNC().getUint32()
-	            + " | h.n: " + p.getNH().getUint32());
+	            + " | p': " + ballotToStr(p.getPreparedPrime()) + " | c.n: " + p.getNC().toString()
+	            + " | h.n: " + p.getNH().toString());
 	    }
 	    break;
 	    case SCP_ST_CONFIRM:
 	    {
 	        SCPStatementConfirm c = st.getPledges().getConfirm();
 	        oss.append(" | CONFIRM"
-	            + " | D: " + CryptoUtils.hexAbbrev(qSetHash.getHash())
-	            + " | b: " + ballotToStr(c.getBallot()) + " | p.n: " + c.getNPrepared().getUint32()
-	            + " | c.n: " + c.getNCommit().getUint32() + " | h.n: " + c.getNH().getUint32());
+	            + " | D: " + qSetHash.hexAbbrev()
+	            + " | b: " + ballotToStr(c.getBallot()) + " | p.n: " + c.getNPrepared().toString()
+	            + " | c.n: " + c.getNCommit().toString() + " | h.n: " + c.getNH().toString());
 	    }
 	    break;
 	    case SCP_ST_EXTERNALIZE:
 	    {
 	    	SCPStatementExternalize ex = st.getPledges().getExternalize();
 	        oss.append(" | EXTERNALIZE"
-	            + " | c: " + ballotToStr(ex.getCommit()) + " | h.n: " + ex.getNH().getUint32()
-	            + " | (lastD): " + CryptoUtils.hexAbbrev(qSetHash.getHash()));
+	            + " | c: " + ballotToStr(ex.getCommit()) + " | h.n: " + ex.getNH().toString()
+	            + " | (lastD): " + qSetHash.hexAbbrev());
 	    }
 	    break;
 	    case SCP_ST_NOMINATE:
 	    {
 	    	SCPNomination nom = st.getPledges().getNominate();
 	        oss.append(" | NOMINATE"
-	            + " | D: " + CryptoUtils.hexAbbrev(qSetHash.getHash()) + " | X: {");
+	            + " | D: " + qSetHash.hexAbbrev() + " | X: {");
 	        boolean first = true;
 	        for (Value v : nom.getVotes())
 	        {

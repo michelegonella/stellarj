@@ -10,6 +10,7 @@ import com.consumimurigni.stellarj.scp.xdr.SCPBallot;
 import com.consumimurigni.stellarj.scp.xdr.SCPEnvelope;
 import com.consumimurigni.stellarj.scp.xdr.SCPQuorumSet;
 import com.consumimurigni.stellarj.scp.xdr.ValueSet;
+import com.consuminurigni.stellarj.common.Hex;
 import com.consuminurigni.stellarj.xdr.Hash;
 import com.consuminurigni.stellarj.xdr.Int32;
 import com.consuminurigni.stellarj.xdr.NodeID;
@@ -164,9 +165,9 @@ public abstract class SCPDriver {
 
 	    String getValueString(Value v)
 	    {
-	        Uint256 valueHash = new Uint256(hasher.apply(v.getValue()));
-
-	        return CryptoUtils.hexAbbrev(valueHash.getUint256());
+	    	return Hex.hexAbbrev(hasher.apply(v.getValue()));
+//	        Uint256 valueHash = new Uint256(hasher.apply(v.getValue()));
+//	        return CryptoUtils.hexAbbrev(valueHash.getUint256());
 	    }
 
 	    // `toShortString` converts to the common name of a key if found
@@ -176,14 +177,9 @@ public abstract class SCPDriver {
 	    }
 
 	    // values used to switch hash function between priority and neighborhood checks
-	    static final Uint32 hash_N = new Uint32();
-	    static final Uint32 hash_P = new Uint32();
-	    static final Uint32 hash_K = new Uint32();
-	    static {
-	    	hash_N.setUint32(1);
-	    	hash_P.setUint32(2);
-	    	hash_K.setUint32(3);
-	    }
+	    static final Uint32 hash_N = Uint32.ofPositiveInt(1);
+	    static final Uint32 hash_P = Uint32.ofPositiveInt(2);
+	    static final Uint32 hash_K = Uint32.ofPositiveInt(3);
 
 	    static Uint64  hashHelper(Uint64 slotIndex, Value prev,
 	               Consumer<SHA256> extra)
@@ -218,8 +214,8 @@ public abstract class SCPDriver {
 	                                Int32 roundNumber, Value value)
 	    {
 	        return hashHelper(slotIndex, prev, (SHA256 h) -> {
-	            h.add(hash_K.toOpaque());
-	            h.add(roundNumber.toOpaque());
+	            h.add(hash_K.encode());
+	            h.add(roundNumber.encode());
 	            h.add(value.getValue());
 	        });
 	    }
@@ -232,9 +228,7 @@ public abstract class SCPDriver {
 
 	    long
 	    computeTimeout(Int32 i) {
-	    	Uint32 uint = new Uint32();
-	    	uint.setUint32(i.getInt32());
-	    	return computeTimeout(uint);
+	    	return computeTimeout(i.toUint());
 	    }
 	    long
 	    computeTimeout(Uint32 roundNumber)
@@ -243,13 +237,13 @@ public abstract class SCPDriver {
 	        // starting at 1 second and capping at MAX_TIMEOUT_SECONDS
 
 	        int timeoutInSeconds;
-	        if (roundNumber.getUint32() > MAX_TIMEOUT_SECONDS)
+	        if (roundNumber.gt(MAX_TIMEOUT_SECONDS))
 	        {
 	            timeoutInSeconds = MAX_TIMEOUT_SECONDS;
 	        }
 	        else
 	        {
-	            timeoutInSeconds = roundNumber.getUint32();
+	            timeoutInSeconds = roundNumber.intValue();
 	        }
 	        return (timeoutInSeconds) * 1000L;
 	    }
