@@ -1,12 +1,11 @@
 package com.consumimurigni.stellarj.scp;
 
-import java.util.Set;
+import java.time.Duration;
 import java.util.function.Consumer;
 
 import com.consumimurigni.stellarj.crypto.CryptoUtils;
 import com.consumimurigni.stellarj.crypto.HashingFunction;
 import com.consumimurigni.stellarj.crypto.SHA256;
-import com.consuminurigni.stellarj.common.Hex;
 import com.consuminurigni.stellarj.scp.xdr.SCPBallot;
 import com.consuminurigni.stellarj.scp.xdr.SCPEnvelope;
 import com.consuminurigni.stellarj.scp.xdr.SCPQuorumSet;
@@ -66,41 +65,13 @@ public abstract class SCPDriver {
 
 	    
 	    
-	    //abstract 
-	    ValidationLevel
-	    validateValue(Uint64 slotIndex, Value value)
-	    {
-	        return ValidationLevel.kMaybeValidValue;
-	    }
+	    public abstract ValidationLevel
+	    validateValue(Uint64 slotIndex, Value value);
 
-	    //abstract 
-	    Value
-	    extractValidValue(Uint64 slotIndex, Value value)
-	    {
-	        return new Value();//TODO ??
-	    }
+	    public abstract Value
+	    extractValidValue(Uint64 slotIndex, Value value);
 	    
 
-	    // `computeHashNode` is used by the nomination protocol to
-	    // randomize the order of messages between nodes.
-	    public abstract Uint64 computeHashNode(Uint64 slotIndex, Value prev,
-	                                   boolean isPriority, int roundNumber,
-	                                   NodeID nodeID);
-
-	    // `computeValueHash` is used by the nomination protocol to
-	    // randomize the relative order between values.
-	    public abstract Uint64 computeValueHash(Uint64 slotIndex, Value prev,
-	                                    int roundNumber, Value value);
-
-	    // `combineCandidates` computes the composite value based off a list
-	    // of candidate values.
-	    public abstract Value combineCandidates(Uint64 slotIndex,
-	                                    ValueSet candidates);
-
-	    // `setupTimer`: requests to trigger 'cb' after timeout
-	    public abstract void setupTimer(Uint64 slotIndex, Slot.timerIDs timerID,
-	                            long timeout,
-	                            Runnable cb);
 
 
 	    // Inform about events happening within the consensus algorithm.
@@ -163,15 +134,15 @@ public abstract class SCPDriver {
 //	    }
 
 
-	    String getValueString(Value v)
+	    public String getValueString(Value v)
 	    {
-	    	return Hex.hexAbbrev(hasher.apply(v.getValue()));
+	    	return new Hash(hasher.apply(v.getValue())).hexAbbrev();
 //	        Uint256 valueHash = new Uint256(hasher.apply(v.getValue()));
 //	        return CryptoUtils.hexAbbrev(valueHash.getUint256());
 	    }
 
 	    // `toShortString` converts to the common name of a key if found
-	    String toShortString(PublicKey pk)
+	    public String toShortString(PublicKey pk)
 	    {
 	        return pk.toShortString();
 	    }
@@ -197,17 +168,25 @@ public abstract class SCPDriver {
 	        }
 	        return res;
 	    }
+	    
+	    // `combineCandidates` computes the composite value based off a list
+	    // of candidate values.
+	    public abstract Value combineCandidates(Uint64 slotIndex,
+	                                    ValueSet candidates);
 
-	    Uint64 computeHashNode(Uint64 slotIndex, Value prev, boolean isPriority,
+	    // `setupTimer`: requests to trigger 'cb' after timeout
+	    public abstract void setupTimer(Uint64 slotIndex, Slot.timerIDs timerID,
+	    		Duration timeout,
+	                            Runnable cb);
+
+	    public Uint64 computeHashNode(Uint64 slotIndex, Value prev, boolean isPriority,
 	                               Int32 roundNumber, NodeID nodeID)
 	    {
-	    	//TODO 
-	    	return null;
-//	        return hashHelper(slotIndex, prev, [&](SHA256* h) {
-//	            h->add(xdr::xdr_to_opaque(isPriority ? hash_P : hash_N));
-//	            h->add(xdr::xdr_to_opaque(roundNumber));
-//	            h->add(xdr::xdr_to_opaque(nodeID));
-//	        });
+	        return hashHelper(slotIndex, prev, (SHA256 h) -> {
+	            h.add((isPriority ? hash_P.encode() : hash_N.encode()));
+	            h.add(roundNumber.encode());
+	            h.add(nodeID.encode());
+	        });
 	    }
 
 	    Uint64 computeValueHash(Uint64 slotIndex, Value prev,
@@ -226,11 +205,11 @@ public abstract class SCPDriver {
 	    // it should be sufficiently large such that nodes in a
 	    // quorum can exchange 4 messages
 
-	    long
+	    Duration
 	    computeTimeout(Int32 i) {
 	    	return computeTimeout(i.toUint());
 	    }
-	    long
+	    Duration
 	    computeTimeout(Uint32 roundNumber)
 	    {
 	        // straight linear timeout
@@ -245,7 +224,7 @@ public abstract class SCPDriver {
 	        {
 	            timeoutInSeconds = roundNumber.intValue();
 	        }
-	        return (timeoutInSeconds) * 1000L;
+	        return Duration.ofSeconds(timeoutInSeconds);
 	    }
 
 }

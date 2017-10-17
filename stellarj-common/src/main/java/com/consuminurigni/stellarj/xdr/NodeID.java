@@ -34,4 +34,8 @@ public boolean eq(NodeID localNodeID) {
 	// TODO Auto-generated method stub
 	return false;
 }
+public byte[] encode() {
+	// TODO Auto-generated method stub
+	return null;
+}
 }

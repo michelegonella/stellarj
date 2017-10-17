@@ -41,5 +41,10 @@ public class LedgerManager {
 	public Uint32 getLedgerNum() {
 		// TODO Auto-generated method stub
 		return null;
+	}
+
+	public Uint32 getLastClosedLedgerNum() {
+		// TODO Auto-generated method stub
+		return null;
 	};
 }

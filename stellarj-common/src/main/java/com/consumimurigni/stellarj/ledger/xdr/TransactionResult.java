@@ -6,6 +6,7 @@ package com.consumimurigni.stellarj.ledger.xdr;
 
 import java.io.IOException;
 
+import com.consumimurigni.stellarj.ledgerimpl.xdr.OperationResult;
 import com.consuminurigni.stellarj.xdr.Int64;
 import com.consuminurigni.stellarj.xdr.XdrDataInputStream;
 import com.consuminurigni.stellarj.xdr.XdrDataOutputStream;

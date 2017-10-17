@@ -244,7 +244,7 @@ public static Hash getCompanionQuorumSetHashFromStatement(SCPStatement st)
     return h;
 }
 
-List<Value> getStatementValues(SCPStatement st)
+public static List<Value> getStatementValues(SCPStatement st)
 {
     List<Value> res = new LinkedList<>();
     if (st.getPledges().getDiscriminant() == SCPStatementType.SCP_ST_NOMINATE)

@@ -68,4 +68,41 @@ public class Hash implements XdrValue {
 		// TODO Auto-generated method stub
 		return null;
 	}
+
+
+	public Hash xor(Hash r)
+	{
+	    Hash res = createEmpty();
+	    for (int i = 0; i < HASH_SIZE; i++)
+	    {
+	        res.Hash[i] = (byte)(this.Hash[i] ^ r.Hash[i]);
+	    }
+
+	    return res;
+	}
+
+	public static boolean lessThanXored(Hash l, Hash r, Hash x)
+	{
+	    Hash v1 = createEmpty();
+	    Hash v2 = createEmpty();
+	    for (int i = 0; i < HASH_SIZE; i++)
+	    {
+	        v1.Hash[i] = (byte)(x.Hash[i] ^ l.Hash[i]);
+	        v2.Hash[i] = (byte)(x.Hash[i] ^ r.Hash[i]);
+	    }
+
+	    return v1.lt(v2);
+	}
+
+	public boolean lt(Hash other) {
+		boolean differ = false;
+		for(int j = 0; j < HASH_SIZE; j++) {
+			if(Byte.toUnsignedInt(this.Hash[j]) > Byte.toUnsignedInt(other.Hash[j])) {
+				return false;
+			} else if(this.Hash[j] != other.Hash[j]) {
+				differ = true;
+			}
+		}
+		return differ;
+	}
 }

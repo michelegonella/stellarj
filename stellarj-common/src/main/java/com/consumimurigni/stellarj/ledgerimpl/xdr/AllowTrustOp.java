@@ -103,6 +103,8 @@ public class AllowTrustOp  {
     int assetCode12size = encodedAllowTrustOpAsset.assetCode12.length;
     stream.write(encodedAllowTrustOpAsset.getAssetCode12(), 0, assetCode12size);
     break;
+	case ASSET_TYPE_NATIVE:
+		throw new IllegalStateException();//missing in cpp
     }
     }
     public static AllowTrustOpAsset decode(XdrDataInputStream stream) throws IOException {
@@ -120,6 +122,8 @@ public class AllowTrustOp  {
     decodedAllowTrustOpAsset.assetCode12 = new byte[assetCode12size];
     stream.read(decodedAllowTrustOpAsset.assetCode12, 0, assetCode12size);
     break;
+	case ASSET_TYPE_NATIVE:
+		throw new IllegalStateException();//missing in cpp
     }
       return decodedAllowTrustOpAsset;
     }

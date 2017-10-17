@@ -1,7 +1,6 @@
 package com.consuminurigni.stellarj.json;
 
 import java.lang.reflect.Type;
-import java.math.BigInteger;
 
 import com.consuminurigni.stellarj.xdr.XdrInteger;
 import com.google.gson.JsonElement;

@@ -1,6 +1,7 @@
 package com.consumimurigni.stellarj.scp;
 
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -507,7 +508,7 @@ public class BallotProtocol {
 
 	void startBallotProtocolTimer()
 	{
-		long timeout = mSlot.getSCPDriver().computeTimeout(mCurrentBallot.getCounter());
+		Duration timeout = mSlot.getSCPDriver().computeTimeout(mCurrentBallot.getCounter());
 //
 //	    std::shared_ptr<Slot> slot = mSlot.shared_from_this();
 	    mSlot.getSCPDriver()

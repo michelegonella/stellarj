@@ -169,7 +169,7 @@ public Uint64 getNodeWeight(NodeID nodeID)
 
     for (SCPQuorumSet q : getInnerSets())
     {
-    	Uint64 leafW = getNodeWeight(nodeID);
+    	Uint64 leafW = q.getNodeWeight(nodeID);
         if (leafW.neq(0))
         {
         	return XdrInteger.bigDivide64(leafW.toBigInteger(), n, d, XdrInteger.Rounding.ROUND_DOWN);
@@ -411,6 +411,10 @@ public static SCPQuorumSet buildSingletonQSet(NodeID nodeID)
     qSet.setThreshold(Uint32.ofPositiveInt(1));
     qSet.setValidators(new PublicKey[] {nodeID.getNodeID()});
     return qSet;
+}
+public static SCPQuorumSet decode(byte[] qSetBytes) {
+	// TODO Auto-generated method stub
+	return null;
 }
 
 }

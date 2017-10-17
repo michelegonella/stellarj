@@ -1,8 +1,5 @@
 package com.consumimurigni.stellarj.main;
 
-import java.time.Instant;
-import java.util.LinkedHashMap;
-
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -11,7 +8,6 @@ import com.codahale.metrics.Meter;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
 import com.consumimurigni.stellarj.ledger.LedgerManager;
-import com.consumimurigni.stellarj.ledger.xdr.UpgradeType;
 import com.consuminurigni.stellarj.common.VirtualClock;
 import com.consuminurigni.stellarj.xdr.Hash;
 

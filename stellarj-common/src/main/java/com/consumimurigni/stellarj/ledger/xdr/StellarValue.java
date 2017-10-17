@@ -42,6 +42,7 @@ public class StellarValue  {
   public StellarValue(Hash txSetHash2, Uint64 nextCloseTime, List<UpgradeType> emptyUpgradeSteps, int i) {
 	// TODO Auto-generated constructor stub
 }
+
 private Hash txSetHash;
   public Hash getTxSetHash() {
     return this.txSetHash;

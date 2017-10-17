@@ -132,5 +132,9 @@ public /*TODO final*/ long uint64;
 		// TODO Auto-generated method stub
 		return null;
 	}
+	public boolean ne(Uint32 nextConsensusLedgerIndex) {
+		// TODO Auto-generated method stub
+		return false;
+	}
 
 }

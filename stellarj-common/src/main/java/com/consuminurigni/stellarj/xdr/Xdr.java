@@ -1,8 +1,10 @@
 package com.consuminurigni.stellarj.xdr;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+
 
 import com.consumimurigni.stellarj.ledger.xdr.TransactionSet;
 import com.consuminurigni.stellarj.scp.xdr.SCPEnvelope;
@@ -46,6 +48,32 @@ public static final Uint32 XDR_MAX_LEN = Uint32.of2ComplRepr(0xfffffffc);
 			List<SCPQuorumSet> latestQSets) {
 		// TODO Auto-generated method stub
 		
+	}
+
+	//TODO ????
+	public static boolean isSorted(Value[] vals) {
+		if(vals.length < 2) {
+			return true;
+		}
+		byte[] prec = vals[0].getValue();
+		for(int i = 1; i < vals.length; i++) {
+			byte[] cur = vals[i].getValue();
+			if(Arrays.equals(prec, cur)) {
+				//TODO correct ?
+				prec = cur;
+				continue;
+			} else {
+				for(int j = 0; j < prec.length; j++) {
+					if(cur.length > j) {
+						if(Byte.toUnsignedInt(prec[j]) > Byte.toUnsignedInt(cur[j])) {
+							return false;
+						}
+					}
+				}
+				prec = cur;
+			}
+		}
+		return true;
 	}
 
 }

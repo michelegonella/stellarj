@@ -4,7 +4,9 @@
 package com.consumimurigni.stellarj.ledger.xdr;
 
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 
 import com.consuminurigni.stellarj.xdr.Uint32;
 import com.consuminurigni.stellarj.xdr.XdrDataInputStream;
@@ -84,10 +86,20 @@ public class LedgerUpgrade  {
   }
     return decodedLedgerUpgrade;
   }
-public static LedgerUpgrade decode(byte[] encode) {
-	// TODO Auto-generated method stub
-	return null;
+  //TODO ???????????
+public static LedgerUpgrade build(UpgradeType t) {
+	XdrDataInputStream xis = new XdrDataInputStream(new ByteArrayInputStream(t.encode()));
+	try {
+		return LedgerUpgrade.decode(xis);
+	} catch (IOException e) {
+		throw new UncheckedIOException(e);
+	}
 }
+
+//public static LedgerUpgrade decode(byte[] encode) {
+//	// TODO Auto-generated method stub
+//	return null;
+//}
 public byte[] encode() {
 	// TODO Auto-generated method stub
 	return null;

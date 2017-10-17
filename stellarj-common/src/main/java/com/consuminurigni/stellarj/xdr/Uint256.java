@@ -80,4 +80,14 @@ public Object hexAbbrev() {
 	return null;
 }
 
+boolean isZero()
+{
+    for (byte i : uint256)
+        if (i != 0) {
+            return false;
+        }
+
+    return true;
+}
+
 }

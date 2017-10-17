@@ -10,7 +10,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -23,15 +22,12 @@ import javax.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.datasource.JdbcTransactionObjectSupport;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import com.codahale.metrics.Gauge;
 import com.consumimurigni.stellarj.crypto.CryptoUtils;
 import com.consumimurigni.stellarj.crypto.KeyUtils;
 import com.consumimurigni.stellarj.crypto.PubKeyUtils;
-import com.consumimurigni.stellarj.crypto.SecretKey;
 import com.consumimurigni.stellarj.ledger.LedgerCloseData;
 import com.consumimurigni.stellarj.ledger.LedgerManager;
 import com.consumimurigni.stellarj.ledger.TxSetFrame;
@@ -54,10 +50,8 @@ import com.consumimurigni.stellarj.main.PersistentState;
 import com.consumimurigni.stellarj.scp.SCP;
 import com.consumimurigni.stellarj.scp.SCPDriver;
 import com.consumimurigni.stellarj.scp.Slot;
-import com.consumimurigni.stellarj.scp.Slot.timerIDs;
 import com.consumimurigni.stellarj.transactions.TransactionFrame;
 import com.consuminurigni.stellarj.common.Assert;
-import com.consuminurigni.stellarj.common.Base64Codec;
 import com.consuminurigni.stellarj.common.Tuple2;
 import com.consuminurigni.stellarj.common.Vectors;
 import com.consuminurigni.stellarj.common.VirtualClock;
@@ -80,8 +74,6 @@ import com.consuminurigni.stellarj.xdr.Uint64;
 import com.consuminurigni.stellarj.xdr.Value;
 import com.consuminurigni.stellarj.xdr.XDROutputFileStream;
 import com.consuminurigni.stellarj.xdr.Xdr;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
 
 public class Herder extends SCPDriver {
 	private static final Logger log = LogManager.getLogger();
@@ -175,7 +167,7 @@ public class Herder extends SCPDriver {
 	};
 
 	//TODO promote to type AccountTxMap
-	private final HashMap<AccountID, TxMap> accountTxMap = new HashMap<>();
+	//private final HashMap<AccountID, TxMap> accountTxMap = new HashMap<>();
 
 	// 0- tx we got during ledger close
 	// 1- one ledger ago. rebroadcast
@@ -194,8 +186,9 @@ public class Herder extends SCPDriver {
 			this.consensusValue = mConsensusValue;
 		}
 
-		public ConsensusData(ConsensusData mTrackingSCP) {
-			// TODO Auto-generated constructor stub
+		public ConsensusData(ConsensusData trackingSCP) {
+			this.consensusIndex = trackingSCP.consensusIndex;
+			this.consensusValue = trackingSCP.consensusValue;
 		}
 
 		public Uint64 getConsensusIndex() {
@@ -225,21 +218,21 @@ public class Herder extends SCPDriver {
 
 	// last slot that was persisted into the database
 	// only keep track of the most recent slot
-	private final Uint64 mLastSlotSaved;
+	private Uint64 mLastSlotSaved;
 
 	// actually vistual-instant
-	private final /* VirtualClock::time_point */ Instant mLastStateChange;
+	private /* VirtualClock::time_point */ Instant mLastStateChange;
 
 	// timer that detects that we're stuck on an SCP slot
 	private final VirtualTimer mTrackingTimer;
 
-	private final /* VirtualClock::time_point */Instant mLastTrigger;
+	private /* VirtualClock::time_point */Instant mLastTrigger;
 	private final VirtualTimer mTriggerTimer;
 
 	private final VirtualTimer mRebroadcastTimer;
 
-	private final Uint32 mLedgerSeqNominating;
-	private final Value mCurrentValue;
+	private Uint32 mLedgerSeqNominating;
+	private Value mCurrentValue;
 
 	private final LinkedHashMap<Uint64, Map<Integer, VirtualTimer>> mSCPTimers = new LinkedHashMap<>();
 
@@ -349,7 +342,7 @@ public class Herder extends SCPDriver {
 	        }
 
 	        // Check slotIndex.
-	        if (nextConsensusLedgerIndex().gt(slotIndex))
+	        if (slotIndex.lte(nextConsensusLedgerIndex().toUint64()))
 	        {
 	            // we already moved on from this slot
 	            // still send it through for emitting the final messages
@@ -421,7 +414,7 @@ public class Herder extends SCPDriver {
 
 	    try
 	    {
-	    	lupgrade = LedgerUpgrade.decode(upgrade.encode());//TODO ???
+	    	lupgrade = LedgerUpgrade.build(upgrade);
 	    }
 	    catch (RuntimeException e)
 	    {
@@ -490,7 +483,8 @@ public class Herder extends SCPDriver {
 	    return b;
 	}
 
-	SCPDriver.ValidationLevel validateValue(Uint64 slotIndex, Value value)
+	@Override
+	public SCPDriver.ValidationLevel validateValue(Uint64 slotIndex, Value value)
 	{
 	    StellarValue b;
 	    try
@@ -539,7 +533,8 @@ public class Herder extends SCPDriver {
 	    return res;
 	}
 
-	Value extractValidValue(Uint64 slotIndex, Value value)
+	@Override
+	public Value extractValidValue(Uint64 slotIndex, Value value)
 	{
 	    StellarValue b;
 	    try
@@ -571,12 +566,14 @@ public class Herder extends SCPDriver {
 	    return res;
 	}
 
-	String toShortString(PublicKey pk)
+	@Override
+	public String toShortString(PublicKey pk)
 	{
 	    return mApp.getConfig().toShortString(pk);
 	}
 
-	String getValueString(Value v)
+	@Override
+	public String getValueString(Value v)
 	{
 	    StellarValue b;
 	    if (v.isEmpty())
@@ -587,7 +584,7 @@ public class Herder extends SCPDriver {
 	    try
 	    {
 	    	b = StellarValue.decode(v.getValue());
-	        return stellarValueToString(b);
+	        return LedgerCloseData.stellarValueToString(b);
 	    }
 	    catch (Exception e)
 	    {
@@ -632,10 +629,10 @@ public class Herder extends SCPDriver {
 
 	void logQuorumInformation(Uint64 index)
 	{
-	    String res;
 	    LinkedHashMap<String, Object> v = new LinkedHashMap<>();
 	    dumpQuorumInfo(v, mSCP.getLocalNodeID(), true, index);
-	    Map<String, Object> slots = (Map<String, Object>)v.get("slots");
+	    @SuppressWarnings("unchecked")
+		Map<String, Object> slots = (Map<String, Object>)v.get("slots");
 	    if (slots != null && ! slots.isEmpty())
 	    {
 	        String indexs = index.toString();
@@ -647,20 +644,20 @@ public class Herder extends SCPDriver {
 	    }
 	}
 
-	Value combineCandidates(Uint64 slotIndex,
-	                              Set<Value> candidates)
+	public Value combineCandidates(Uint64 slotIndex,
+	                              ValueSet candidates)
 	{
-	    Hash h;
+	    Hash h = Hash.createEmpty();//TODO
 
-  	    StellarValue comp;//TODO(h, 0, emptyUpgradeSteps, 0);
+  	    StellarValue comp = new StellarValue(h, Uint64.ZERO, LedgerCloseData.emptyUpgradeSteps, 0);
 
 	    LinkedHashMap<LedgerUpgradeType, LedgerUpgrade> upgrades = new LinkedHashMap<>();
 
-	    LinkedHashSet<TransactionFrame> aggSet = new LinkedHashSet<>();
+	    //TODO ?? unused also in cppLinkedHashSet<TransactionFrame> aggSet = new LinkedHashSet<>();
 
 	    LedgerHeaderHistoryEntry lcl = mLedgerManager.getLastClosedLedgerHeader();
 
-	    Hash candidatesHash;//TODO ?? init ??
+	    Hash candidatesHash = Hash.createEmpty();//TODO ?? init ??
 
 	    List<StellarValue> candidateValues = new LinkedList<>();
 
@@ -668,7 +665,7 @@ public class Herder extends SCPDriver {
 	    {
 	    	StellarValue sv = StellarValue.fromOpaque(c);
 	    	candidateValues.add(sv);
-	        candidatesHash ^= sha256(c);
+	        candidatesHash = candidatesHash.xor(new Hash(CryptoUtils.sha256().apply(c.getValue())));
 
 	        // max closeTime
 	        if (comp.getCloseTime().lt(sv.getCloseTime()))
@@ -677,8 +674,7 @@ public class Herder extends SCPDriver {
 	        }
 	        for (UpgradeType upgrade : sv.getUpgrades())
 	        {
-	            LedgerUpgrade lupgrade = LedgerUpgrade.decode(upgrade.encode());
-	            LedgerUpgrade it = upgrades.get(lupgrade.getDiscriminant());
+	            LedgerUpgrade lupgrade = LedgerUpgrade.build(upgrade);
 	            if (! upgrades.containsKey(lupgrade.getDiscriminant()))
 	            {
 	                upgrades.put(lupgrade.getDiscriminant(), lupgrade);
@@ -725,8 +721,8 @@ public class Herder extends SCPDriver {
 	    // highest xored hash that we have
 	    TxSetFrame bestTxSet;//TODO init
 	    {
-	        Hash highest;//TODO init
-	        TxSetFrame highestTxSet;//TODO init
+	        Hash highest = Hash.createEmpty();//TODO init
+	        TxSetFrame highestTxSet = null;//TODO init
 	        for (StellarValue sv : candidateValues)
 	        {
 	            @Nullable TxSetFrame cTxSet = getTxSet(sv.getTxSetHash());
@@ -737,7 +733,7 @@ public class Herder extends SCPDriver {
 	                                      highestTxSet.getTransactions().size()) ||
 	                    ((cTxSet.getTransactions().size() ==
 	                      highestTxSet.getTransactions().size()) &&
-	                     lessThanXored(highest, sv.getTxSetHash(), candidatesHash)))
+	                     Hash.lessThanXored(highest, sv.getTxSetHash(), candidatesHash)))
 	                {
 	                    highestTxSet = cTxSet;
 	                    highest = sv.getTxSetHash();
@@ -775,30 +771,6 @@ public class Herder extends SCPDriver {
 	    }
 
 	    return comp.toOpaqueValue();
-	}
-
-	void setupTimer(Uint64 slotIndex, int timerID,
-	                       Duration timeout,
-	                       Runnable cb)
-	{
-	    // don't setup timers for old slots
-	    if (slotIndex.lte(getCurrentLedgerSeq()))
-	    {
-	        mSCPTimers.remove(slotIndex);
-	        return;
-	    }
-
-	    Map<Integer, VirtualTimer> slotTimers = mSCPTimers.get(slotIndex);
-
-	    VirtualTimer timer = slotTimers.get(timerID);
-	    if (timer == null)
-	    {
-	        timer = new VirtualTimer(mApp);
-	        slotTimers.put(timerID,  timer);
-	    }
-	    timer.cancel();
-	    timer.expires_from_now(timeout);
-	    timer.async_wait(cb, VirtualTimer::onFailureNoop);
 	}
 
 	void rebroadcast()
@@ -996,7 +968,7 @@ public class Herder extends SCPDriver {
 	            mPendingEnvelopes.eraseBelow(nextConsensusLedgerIndex().minus(MAX_SLOTS_TO_REMEMBER));
 	        }
 
-	        processSCPQueueUpToIndex(nextConsensusLedgerIndex());
+	        processSCPQueueUpToIndex(nextConsensusLedgerIndex().toUint64());
 	    }
 	    else
 	    {
@@ -1043,14 +1015,14 @@ public class Herder extends SCPDriver {
 
 	    mApp.getOverlayManager().ledgerClosed(lastConsensusLedgerIndex());
 
-	    Uint64 nextIndex = nextConsensusLedgerIndex();
+	    Uint32 nextIndex = nextConsensusLedgerIndex();
 
 	    // process any statements up to this slot (this may trigger externalize)
-	    processSCPQueueUpToIndex(nextIndex);
+	    processSCPQueueUpToIndex(nextIndex.toUint64());
 
 	    // if externalize got called for a future slot, we don't
 	    // need to trigger (the now obsolete) next round
-	    if (nextIndex.neq(nextConsensusLedgerIndex()))
+	    if (nextIndex.ne(nextConsensusLedgerIndex()))
 	    {
 	        return;
 	    }
@@ -1413,7 +1385,7 @@ public class Herder extends SCPDriver {
 	    	}
 	    }
 
-	    if (slotIndex.lte(getCurrentLedgerSeq()))
+	    if (slotIndex.lte(getCurrentLedgerSeq().toUint64()))
 	    {
 	        // externalize may trigger on older slots:
 	        //  * when the current instance starts up
@@ -1424,7 +1396,7 @@ public class Herder extends SCPDriver {
 	        return;
 	    }
 
-	    StellarValue b;
+	    StellarValue b = null;
 	    try
 	    {
 	        b = StellarValue.decode(value.getValue());
@@ -1487,7 +1459,7 @@ public class Herder extends SCPDriver {
 	    // tell the LedgerManager that this value got externalized
 	    // LedgerManager will perform the proper action based on its internal
 	    // state: apply, trigger catchup, etc
-	    LedgerCloseData ledgerData = new LedgerCloseData(lastConsensusLedgerIndex(), externalizedSet, b);
+	    LedgerCloseData ledgerData = new LedgerCloseData(lastConsensusLedgerIndex().toUint64(), externalizedSet, b);
 	    mLedgerManager.valueExternalized(ledgerData);
 
 	    // perform cleanups
@@ -1546,11 +1518,42 @@ public class Herder extends SCPDriver {
 
 	}
 
-//	@Override
-//	public void setupTimer(Uint64 slotIndex, timerIDs timerID, long timeout, Runnable cb) {
-//		// TODO Auto-generated method stub
-//
-//	}
+	public void setupTimer(Uint64 slotIndex, Slot.timerIDs timerID,
+	                       Duration timeout,
+	                       Runnable cb)
+	{
+	    // don't setup timers for old slots
+	    if (slotIndex.lte(getCurrentLedgerSeq().toUint64()))
+	    {
+	        mSCPTimers.remove(slotIndex);
+	        return;
+	    }
+
+	    Map<Integer,VirtualTimer> slotTimers = mSCPTimers.get(slotIndex);
+
+	    VirtualTimer timer = slotTimers.get(timerID.ordinal());
+	    if (timer == null)
+	    {
+	    	timer = new VirtualTimer(mApp);
+	    	slotTimers.put(timerID.ordinal(), timer);
+	    }
+	    timer.cancel();
+	    timer.expires_from_now(timeout);
+	    timer.async_wait(cb, VirtualTimer::onFailureNoop);
+	}
+
+    // the ledger index that was last externalized
+    Uint32 lastConsensusLedgerIndex()
+    {
+        assert(mTrackingSCP.getConsensusIndex().lte(Uint32.UINT32_MAX.toUint64()));
+        return mTrackingSCP.getConsensusIndex().toUint32();
+    }
+
+    // the ledger index that we expect to externalize next
+    Uint32 nextConsensusLedgerIndex()
+    {
+        return lastConsensusLedgerIndex().plus(1);
+    }
 
 	void dumpInfo(Map<String,Object> ret, int limit)
 	{
@@ -1565,7 +1568,8 @@ public class Herder extends SCPDriver {
 	                           Uint64 index)
 	{
 	    ret.put("node", mApp.getConfig().toStrKey(id));
-	    LinkedHashMap<String,Object> slots = (LinkedHashMap<String,Object>)ret.get("slots");
+	    @SuppressWarnings("unchecked")
+		LinkedHashMap<String,Object> slots = (LinkedHashMap<String,Object>)ret.get("slots");
 	    if(slots == null) {
 	    	slots = new LinkedHashMap<>();
 	    }
@@ -1592,7 +1596,7 @@ public class Herder extends SCPDriver {
 	        latestEnvs.add(e);
 
 	        // saves transaction sets referred by the statement
-	        for (Hash h : getTxSetHashes(e))
+	        for (Hash h : HerderUtils.getTxSetHashes(e))
 	        {
 	        	TxSetFrame txSet = mPendingEnvelopes.getTxSet(h);
 	            if (txSet != null)
@@ -1709,7 +1713,7 @@ public class Herder extends SCPDriver {
 	    removeReceivedTxs(applied);
 
 	    // drop the highest level
-	    mPendingTransactions.remove(mPendingTransactions.size() - 1);
+	    mPendingTransactions.removeLast();
 
 	    // shift entries up
 	    mPendingTransactions.addFirst(new HashMap<AccountID,TxMap>());
@@ -1840,13 +1844,13 @@ public class Herder extends SCPDriver {
 	        // quorum sets missing in this batch of envelopes
 	        Set<Hash> missingQSets = new HashSet<>();
 //TODO init
+        	JdbcTemplate tpl = db.getJdbcTemplate();
 
 	        // fetch SCP messages from history
 	        SCPEnvelope[] curEnvs = new SCPEnvelope[0];
 	        {
 
 	            //TODO auto timer = db.getSelectTimer("scphistory");
-	        	JdbcTemplate tpl = db.getJdbcTemplate();
 	            List<String> envB64s = tpl.queryForList("SELECT envelope FROM scphistory WHERE ledgerseq = ? ORDER BY nodeid", String.class, curLedgerSeq.longValue());
 	            for(String envB64 : envB64s)
 	            {
@@ -1873,47 +1877,64 @@ public class Herder extends SCPDriver {
 	        // fetch the quorum sets from the db
 	        for (Hash q : missingQSets)
 	        {
-	            String qset64;
-	            String qSetHashHex;
-
-
-	            qSetHashHex = q.toHex();
+	            
+	            String qSetHashHex = q.toHex();
 
 	            //TODO auto timer = db.getSelectTimer("scpquorums");
-	            
-	            soci::statement st = (sess.prepare << "SELECT qset FROM scpquorums "
-	                                                  "WHERE qsethash = :h",
-	                                  into(qset64), use(qSetHashHex));
-
-	            st.execute(true);
-
-	            if (!st.got_data())
+	            List<String> qset64s = tpl.queryForList("SELECT qset FROM scpquorums WHERE qsethash = ?", String.class, qSetHashHex);
+	            if (qset64s.isEmpty())
 	            {
-	                throw std::runtime_error(
+	                throw new RuntimeException(//TODO DataAccessException ?
 	                    "corrupt database state: missing quorum set");
 	            }
-
-	            std::vector<uint8_t> qSetBytes;
-	            bn::decode_b64(qset64, qSetBytes);
-
-	            xdr::xdr_get g1(&qSetBytes.front(), &qSetBytes.back() + 1);
-	            xdr_argpack_archive(g1, qset);
-	            Vectors.emplace_back(quorumSets, qset);
+	            String qset64 = qset64s.get(0);//TODO ugly
+	            byte[] qSetBytes = Base64.getDecoder().decode(qset64);
+	            SCPQuorumSet qset = SCPQuorumSet.decode(qSetBytes);
+	            quorumSets = Vectors.emplace_back(quorumSets, qset);
 	        }
+	        SCPHistoryEntryV0 hEntry = new SCPHistoryEntryV0();
+	        hEntry.setLedgerMessages(lm);
+	        hEntry.setQuorumSets(quorumSets);
+	        SCPHistoryEntry hEntryV = new SCPHistoryEntry();
+	        hEntryV.setDiscriminant(0);;
+	        hEntryV.setV0(hEntry);
 
-	        if (curEnvs.size() != 0)
+	        if (curEnvs.length != 0)
 	        {
 	            scpHistory.writeOne(hEntryV);
 	        }
 	    }
-        SCPHistoryEntryV0 hEntry = new SCPHistoryEntryV0();
-        hEntry.setLedgerMessages(lm);
-        hEntry.setQuorumSets(quorumSets);
-        SCPHistoryEntry hEntryV = new SCPHistoryEntry();
-        hEntryV.setDiscriminant(0);;
-        hEntryV.setV0(hEntry);
 
 	    return n;
+	}
+
+	void dropAll(Database db)
+	{
+	    db.getJdbcTemplate().update("DROP TABLE IF EXISTS scphistory");
+
+	    db.getJdbcTemplate().update("DROP TABLE IF EXISTS scpquorums");
+
+	    db.getJdbcTemplate().update("CREATE TABLE scphistory ("+
+	                       "nodeid      CHARACTER(56) NOT NULL,"+
+	                       "ledgerseq   INT NOT NULL CHECK (ledgerseq >= 0),"+
+	                       "envelope    TEXT NOT NULL"+
+	                       ")");
+
+	    db.getJdbcTemplate().update("CREATE INDEX scpenvsbyseq ON scphistory(ledgerseq)");
+
+	    db.getJdbcTemplate().update("CREATE TABLE scpquorums ("+
+	                       "qsethash      CHARACTER(64) NOT NULL,"+
+	                       "lastledgerseq INT NOT NULL CHECK (lastledgerseq >= 0),"+
+	                       "qset          TEXT NOT NULL,"+
+	                       "PRIMARY KEY (qsethash)"+
+	                       ")");
+	}
+
+	//TODO longValue() unsigned 32
+	void deleteOldEntries(Database db, Uint32 ledgerSeq)
+	{
+		db.getJdbcTemplate().update("DELETE FROM scphistory WHERE ledgerseq <= ?", ledgerSeq.longValue());
+	    db.getJdbcTemplate().update("DELETE FROM scpquorums WHERE lastledgerseq <= ?", ledgerSeq.longValue());
 	}
 
 }

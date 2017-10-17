@@ -48,4 +48,8 @@ public static Uint32 max_size() {
 	// TODO Auto-generated method stub
 	return Xdr.XDR_MAX_LEN;
 }
+public boolean isEmpty() {
+	// TODO Auto-generated method stub
+	return false;
+}
 }
