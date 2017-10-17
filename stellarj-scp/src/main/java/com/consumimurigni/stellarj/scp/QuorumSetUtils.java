@@ -1,6 +1,6 @@
 package com.consumimurigni.stellarj.scp;
 
-import com.consumimurigni.stellarj.scp.xdr.SCPQuorumSet;
+import com.consuminurigni.stellarj.scp.xdr.SCPQuorumSet;
 
 public class QuorumSetUtils {
 

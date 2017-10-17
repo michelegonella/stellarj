@@ -6,11 +6,11 @@ import java.util.function.Consumer;
 import com.consumimurigni.stellarj.crypto.CryptoUtils;
 import com.consumimurigni.stellarj.crypto.HashingFunction;
 import com.consumimurigni.stellarj.crypto.SHA256;
-import com.consumimurigni.stellarj.scp.xdr.SCPBallot;
-import com.consumimurigni.stellarj.scp.xdr.SCPEnvelope;
-import com.consumimurigni.stellarj.scp.xdr.SCPQuorumSet;
-import com.consumimurigni.stellarj.scp.xdr.ValueSet;
 import com.consuminurigni.stellarj.common.Hex;
+import com.consuminurigni.stellarj.scp.xdr.SCPBallot;
+import com.consuminurigni.stellarj.scp.xdr.SCPEnvelope;
+import com.consuminurigni.stellarj.scp.xdr.SCPQuorumSet;
+import com.consuminurigni.stellarj.scp.xdr.ValueSet;
 import com.consuminurigni.stellarj.xdr.Hash;
 import com.consuminurigni.stellarj.xdr.Int32;
 import com.consuminurigni.stellarj.xdr.NodeID;
@@ -21,7 +21,7 @@ import com.consuminurigni.stellarj.xdr.Uint64;
 import com.consuminurigni.stellarj.xdr.Value;
 
 public abstract class SCPDriver {
-	 enum ValidationLevel
+	public enum ValidationLevel
 	    {
 	        kInvalidValue,        // value is invalid for sure
 	        kFullyValidatedValue, // value is valid for sure
@@ -36,12 +36,12 @@ public abstract class SCPDriver {
 		 return hasher;
 	 }
 	    // Envelope signature/verification
-	    abstract void signEnvelope(SCPEnvelope envelope);
-	    abstract boolean verifyEnvelope(SCPEnvelope envelope);
+	    public abstract void signEnvelope(SCPEnvelope envelope);
+	    public abstract boolean verifyEnvelope(SCPEnvelope envelope);
 
 	    // Delegates the retrieval of the quorum set designated by `qSetHash` to
 	    // the user of SCP.
-	    abstract SCPQuorumSet getQSet(Hash qSetHash);
+	    public abstract SCPQuorumSet getQSet(Hash qSetHash);
 
 	    // Users of the SCP library should inherit from SCPDriver and implement the
 	    // abstract methods which are called by the SCP implementation to
@@ -50,7 +50,7 @@ public abstract class SCPDriver {
 
 	    // Delegates the emission of an SCPEnvelope to the user of SCP. Envelopes
 	    // should be flooded to the network.
-	    abstract void emitEnvelope(SCPEnvelope envelope);
+	    public abstract void emitEnvelope(SCPEnvelope envelope);
 
 	    // methods to hand over the validation and ordering of values and ballots.
 
@@ -83,22 +83,22 @@ public abstract class SCPDriver {
 
 	    // `computeHashNode` is used by the nomination protocol to
 	    // randomize the order of messages between nodes.
-	    abstract Uint64 computeHashNode(Uint64 slotIndex, Value prev,
+	    public abstract Uint64 computeHashNode(Uint64 slotIndex, Value prev,
 	                                   boolean isPriority, int roundNumber,
 	                                   NodeID nodeID);
 
 	    // `computeValueHash` is used by the nomination protocol to
 	    // randomize the relative order between values.
-	    abstract Uint64 computeValueHash(Uint64 slotIndex, Value prev,
+	    public abstract Uint64 computeValueHash(Uint64 slotIndex, Value prev,
 	                                    int roundNumber, Value value);
 
 	    // `combineCandidates` computes the composite value based off a list
 	    // of candidate values.
-	    abstract Value combineCandidates(Uint64 slotIndex,
+	    public abstract Value combineCandidates(Uint64 slotIndex,
 	                                    ValueSet candidates);
 
 	    // `setupTimer`: requests to trigger 'cb' after timeout
-	    abstract void setupTimer(Uint64 slotIndex, Slot.timerIDs timerID,
+	    public abstract void setupTimer(Uint64 slotIndex, Slot.timerIDs timerID,
 	                            long timeout,
 	                            Runnable cb);
 
@@ -107,14 +107,14 @@ public abstract class SCPDriver {
 
 	    // `valueExternalized` is called at most once per slot when the slot
 	    // externalize its value.
-	    abstract void
+	    public abstract void
 	    valueExternalized(Uint64 slotIndex, Value value);
 //	    {
 //	    }
 
 	    // ``nominatingValue`` is called every time the local instance nominates
 	    // a new value.
-	    abstract void
+	    public abstract void
 	    nominatingValue(Uint64 slotIndex, Value value);
 //	    {
 //	    }
@@ -125,39 +125,39 @@ public abstract class SCPDriver {
 	    // `updatedCandidateValue` is called every time a new candidate value
 	    // is included in the candidate set, the value passed in is
 	    // a composite value
-	    abstract void
+	    public abstract void
 	    updatedCandidateValue(Uint64 slotIndex, Value value);
 //	    {
 //	    }
 
 	    // `startedBallotProtocol` is called when the ballot protocol is started
 	    // (ie attempts to prepare a new ballot)
-	    abstract void
+	    public abstract void
 	    startedBallotProtocol(Uint64 slotIndex, SCPBallot ballot);
 //	    {
 //	    }
 
 	    // `acceptedBallotPrepared` every time a ballot is accepted as prepared
-	    abstract void
+	    public abstract void
 	    acceptedBallotPrepared(Uint64 slotIndex, SCPBallot ballot);
 //	    {
 //	    }
 
 	    // `confirmedBallotPrepared` every time a ballot is confirmed prepared
-	    abstract void
+	    public abstract void
 	    confirmedBallotPrepared(Uint64 slotIndex, SCPBallot ballot);
 //	    {
 //	    }
 
 	    // `acceptedCommit` every time a ballot is accepted commit
-	    abstract void acceptedCommit(Uint64 slotIndex, SCPBallot ballot);
+	    public abstract void acceptedCommit(Uint64 slotIndex, SCPBallot ballot);
 //	    {
 //	    }
 
 	    // `ballotDidHearFromQuorum` is called when we received messages related to
 	    // the current `mBallot` from a set of node that is a transitive quorum for
 	    // the local node.
-	    abstract void
+	    public abstract void
 	    ballotDidHearFromQuorum(Uint64 slotIndex, SCPBallot ballot);
 //	    {
 //	    }

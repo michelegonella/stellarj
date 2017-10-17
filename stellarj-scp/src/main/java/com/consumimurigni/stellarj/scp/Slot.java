@@ -10,11 +10,11 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.consumimurigni.stellarj.scp.SCP.EnvelopeState;
-import com.consumimurigni.stellarj.scp.xdr.SCPEnvelope;
-import com.consumimurigni.stellarj.scp.xdr.SCPQuorumSet;
-import com.consumimurigni.stellarj.scp.xdr.SCPStatement;
-import com.consumimurigni.stellarj.scp.xdr.SCPStatementType;
 import com.consuminurigni.stellarj.common.Assert;
+import com.consuminurigni.stellarj.scp.xdr.SCPEnvelope;
+import com.consuminurigni.stellarj.scp.xdr.SCPQuorumSet;
+import com.consuminurigni.stellarj.scp.xdr.SCPStatement;
+import com.consuminurigni.stellarj.scp.xdr.SCPStatementType;
 import com.consuminurigni.stellarj.xdr.Hash;
 import com.consuminurigni.stellarj.xdr.NodeID;
 import com.consuminurigni.stellarj.xdr.Uint32;
@@ -22,7 +22,7 @@ import com.consuminurigni.stellarj.xdr.Uint64;
 import com.consuminurigni.stellarj.xdr.Value;
 
 public class Slot {
-	enum timerIDs
+	public enum timerIDs
     {
         NOMINATION_TIMER,//TODO = 0,
         BALLOT_PROTOCOL_TIMER// = 1
@@ -220,7 +220,7 @@ SCPEnvelope createEnvelope(SCPStatement statement)
     return envelope;
 }
 
-static Hash getCompanionQuorumSetHashFromStatement(SCPStatement st)
+public static Hash getCompanionQuorumSetHashFromStatement(SCPStatement st)
 {
     Hash h;
     switch (st.getPledges().getDiscriminant())

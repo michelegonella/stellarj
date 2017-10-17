@@ -14,7 +14,13 @@ import com.consuminurigni.stellarj.common.Hex;
 public class Hash implements XdrValue {
 	private static final int HASH_SIZE = 32;
 	private final byte[] Hash;
-
+	private static final byte[] ZEROES = new byte[] {
+		0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,
+		0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,
+	};
+	public static Hash createEmpty() {
+		return new Hash(ZEROES);
+	}
 	public Hash(byte[] b) {
 		Hash = b;
 		Assert.assertTrue(b.length == HASH_SIZE);
@@ -52,5 +58,14 @@ public class Hash implements XdrValue {
 	@Override
 	public boolean equals(Object obj) {
 		return obj instanceof Hash && Arrays.equals(((Hash) obj).Hash, Hash);
+	}
+
+	public static Hash decode(byte[] apply) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+	public String toHex() {
+		// TODO Auto-generated method stub
+		return null;
 	}
 }

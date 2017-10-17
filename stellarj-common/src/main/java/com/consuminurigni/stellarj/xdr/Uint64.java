@@ -13,7 +13,7 @@ import java.nio.ByteBuffer;
 public class Uint64 extends XdrInteger {
 	private static final long serialVersionUID = 1790875541700710224L;
 public static final Uint64 ZERO = null;
-private Long uint64;
+public /*TODO final*/ long uint64;
   public Long getUint64() {
     return this.uint64;
   }
@@ -68,19 +68,19 @@ private Long uint64;
 
 	@Override
 	public String toString() {
-		// TODO Auto-generated method stub
-		return super.toString();
+		return Long.toUnsignedString(uint64);
 	}
+
 	@Override
 	public int hashCode() {
-		// TODO Auto-generated method stub
-		return super.hashCode();
+		return Long.hashCode(uint64);
 	}
+
 	@Override
 	public boolean equals(Object obj) {
-		// TODO Auto-generated method stub
-		return super.equals(obj);
+		return obj instanceof Uint64 && ((Uint64) obj).uint64 == uint64;
 	}
+
 	@Override
 	public int intValue() {
 		// TODO Auto-generated method stub
@@ -93,6 +93,42 @@ private Long uint64;
 	}
 	@Override
 	public BigInteger asBigInteger() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+	public boolean eq(Uint32 plus) {
+		// TODO Auto-generated method stub
+		return false;
+	}
+	public boolean lte(Uint64 lastCloseTime) {
+		// TODO Auto-generated method stub
+		return false;
+	}
+	public static Uint64 of(long sz) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+	public Uint64 minus(long l) {//l positive
+		// TODO Auto-generated method stub
+		return null;
+	}
+	public Int64 toInt64() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+	public boolean gt(Uint32 maxLedgerSeq) {
+		// TODO Auto-generated method stub
+		return false;
+	}
+	public boolean lt(Uint32 minLedgerSeq) {
+		// TODO Auto-generated method stub
+		return false;
+	}
+	public Uint64 plus(long i) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+	public Uint32 toUint32() {
 		// TODO Auto-generated method stub
 		return null;
 	}

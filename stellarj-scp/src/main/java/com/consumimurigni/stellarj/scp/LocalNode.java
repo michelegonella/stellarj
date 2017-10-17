@@ -11,8 +11,8 @@ import org.apache.logging.log4j.Logger;
 
 import com.consumimurigni.stellarj.crypto.HashingFunction;
 import com.consumimurigni.stellarj.crypto.SecretKey;
-import com.consumimurigni.stellarj.scp.xdr.SCPQuorumSet;
-import com.consumimurigni.stellarj.scp.xdr.SCPStatement;
+import com.consuminurigni.stellarj.scp.xdr.SCPQuorumSet;
+import com.consuminurigni.stellarj.scp.xdr.SCPStatement;
 import com.consuminurigni.stellarj.xdr.Hash;
 import com.consuminurigni.stellarj.xdr.NodeID;
 
@@ -389,7 +389,7 @@ public class LocalNode {
 //	    return toJson(qSet).toString();
 //	}
 
-	NodeID getNodeID()
+	public NodeID getNodeID()
 	{
 	    return mNodeID;
 	}

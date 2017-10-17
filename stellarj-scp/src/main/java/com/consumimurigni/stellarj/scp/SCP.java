@@ -14,15 +14,15 @@ import org.springframework.lang.Nullable;
 import com.consumimurigni.stellarj.crypto.CryptoUtils;
 import com.consumimurigni.stellarj.crypto.HashingFunction;
 import com.consumimurigni.stellarj.crypto.SecretKey;
-import com.consumimurigni.stellarj.scp.xdr.SCPBallot;
-import com.consumimurigni.stellarj.scp.xdr.SCPEnvelope;
-import com.consumimurigni.stellarj.scp.xdr.SCPNomination;
-import com.consumimurigni.stellarj.scp.xdr.SCPQuorumSet;
-import com.consumimurigni.stellarj.scp.xdr.SCPStatement;
-import com.consumimurigni.stellarj.scp.xdr.SCPStatement.SCPStatementPledges.SCPStatementConfirm;
-import com.consumimurigni.stellarj.scp.xdr.SCPStatement.SCPStatementPledges.SCPStatementExternalize;
-import com.consumimurigni.stellarj.scp.xdr.SCPStatement.SCPStatementPledges.SCPStatementPrepare;
 import com.consuminurigni.stellarj.common.Assert;
+import com.consuminurigni.stellarj.scp.xdr.SCPBallot;
+import com.consuminurigni.stellarj.scp.xdr.SCPEnvelope;
+import com.consuminurigni.stellarj.scp.xdr.SCPNomination;
+import com.consuminurigni.stellarj.scp.xdr.SCPQuorumSet;
+import com.consuminurigni.stellarj.scp.xdr.SCPStatement;
+import com.consuminurigni.stellarj.scp.xdr.SCPStatement.SCPStatementPledges.SCPStatementConfirm;
+import com.consuminurigni.stellarj.scp.xdr.SCPStatement.SCPStatementPledges.SCPStatementExternalize;
+import com.consuminurigni.stellarj.scp.xdr.SCPStatement.SCPStatementPledges.SCPStatementPrepare;
 import com.consuminurigni.stellarj.xdr.Hash;
 import com.consuminurigni.stellarj.xdr.NodeID;
 import com.consuminurigni.stellarj.xdr.Uint64;
@@ -62,7 +62,7 @@ public class SCP {
 	 }
 
 
-    EnvelopeState receiveEnvelope(SCPEnvelope envelope)
+    public EnvelopeState receiveEnvelope(SCPEnvelope envelope)
     {
         // If the envelope is not correctly signed, we ignore it.
         if (!mDriver.verifyEnvelope(envelope))
@@ -76,14 +76,14 @@ public class SCP {
         return getSlot(slotIndex, true).processEnvelope(envelope, false);
     }
 
-    boolean 
+    public boolean 
     nominate(Uint64 slotIndex, Value  value, Value  previousValue)
     {
         Assert.assertTrue(isValidator());
         return getSlot(slotIndex, true).nominate(value, previousValue, false);
     }
 
-    void
+    public void
     stopNomination(Uint64 slotIndex)
     {
         Slot s = getSlot(slotIndex, false);
@@ -123,14 +123,14 @@ public class SCP {
         return mLocalNode.getQuorumSet();
     }
 
-    NodeID 
+    public NodeID 
     getLocalNodeID()
     {
         return mLocalNode.getNodeID();
     }
 
     //TODO ensure synch
-    void purgeSlots(Uint64 maxSlotIndex)
+    public void purgeSlots(Uint64 maxSlotIndex)
     {
     	//TODO test
     	Iterator<Entry<Uint64, Slot>> itr = mKnownSlots.entrySet().iterator();
@@ -143,13 +143,13 @@ public class SCP {
         }
     }
 
-    LocalNode
+    public LocalNode
     getLocalNode()
     {
         return mLocalNode;
     }
 
-    void dumpInfo(Map<String, Object> ret, int limit)
+    public void dumpInfo(Map<String, Object> ret, int limit)
     {
     	Map<String, Object> slots = new LinkedHashMap<String, Object>();
     	for(Entry<Uint64,Slot> sEntry : mKnownSlots.entrySet()) {
@@ -161,10 +161,9 @@ public class SCP {
     	ret.put("slots", slots);
     }
 
-    void dumpQuorumInfo(NodeID id, boolean summary,
+    public void dumpQuorumInfo(LinkedHashMap<String, Object> ret, NodeID id, boolean summary,
                         Uint64 index)
     {
-    	Map<String, Object> ret = new LinkedHashMap<>();
     	Map<String, Object> slots = new LinkedHashMap<>();
     	ret.put("slots", slots);
         if (index.eq(0))
@@ -185,12 +184,12 @@ public class SCP {
         }
     }
 
-    SecretKey getSecretKey()
+    public SecretKey getSecretKey()
     {
         return mLocalNode.getSecretKey();
     }
 
-    boolean isValidator()
+    public boolean isValidator()
     {
         return mLocalNode.isValidator();
     }
@@ -210,7 +209,7 @@ public class SCP {
         return c;
     }
 
-    List<SCPEnvelope> getLatestMessagesSend(Uint64 slotIndex)
+    public List<SCPEnvelope> getLatestMessagesSend(Uint64 slotIndex)
     {
         Slot slot = getSlot(slotIndex, false);
         if (slot != null)
@@ -223,7 +222,7 @@ public class SCP {
         }
     }
     
-    void setStateFromEnvelope(Uint64 slotIndex, SCPEnvelope e)
+    public void setStateFromEnvelope(Uint64 slotIndex, SCPEnvelope e)
     {
         if (mDriver.verifyEnvelope(e))
         {
@@ -232,7 +231,7 @@ public class SCP {
         }
     }
 
-    List<SCPEnvelope> getCurrentState(Uint64 slotIndex)
+    public List<SCPEnvelope> getCurrentState(Uint64 slotIndex)
     {
         Slot slot = getSlot(slotIndex, false);
         if (slot != null)
@@ -245,7 +244,7 @@ public class SCP {
         }
     }
 
-    List<SCPEnvelope> getExternalizingState(Uint64 slotIndex)
+    public List<SCPEnvelope> getExternalizingState(Uint64 slotIndex)
     {
         Slot slot = getSlot(slotIndex, false);
         if (slot != null)

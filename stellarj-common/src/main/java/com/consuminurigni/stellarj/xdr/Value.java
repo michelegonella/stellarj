@@ -52,4 +52,16 @@ public boolean eq(Value value2) {
 	// TODO Auto-generated method stub
 	return false;
 }
+public void clear() {
+	// TODO Auto-generated method stub
+	
+}
+public static Value decode(byte[] encode) {
+	// TODO Auto-generated method stub
+	return null;
+}
+public int size() {
+	// TODO Auto-generated method stub
+	return 0;
+}
 }

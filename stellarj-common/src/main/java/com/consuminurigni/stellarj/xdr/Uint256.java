@@ -71,5 +71,13 @@ public BigInteger asBigInteger() {
 	// TODO Auto-generated method stub
 	return null;
 }
+public static Uint256 of(byte[] apply) {
+	// TODO Auto-generated method stub
+	return null;
+}
+public Object hexAbbrev() {
+	// TODO Auto-generated method stub
+	return null;
+}
 
 }

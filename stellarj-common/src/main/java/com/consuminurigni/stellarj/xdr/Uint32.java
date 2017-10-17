@@ -142,4 +142,40 @@ public class Uint32 extends XdrInteger {
 		return BigInteger.valueOf(longValue());
 	}
 
+	// >= 0
+	public Uint32 mul(double d) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+	// >= 0
+	public Uint32 mul(int d) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	public Uint64 toUint64() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	public Uint32 minus(Uint32 maxSlotsToRemember) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	public boolean lt(Uint64 consensusIndex) {
+		// TODO Auto-generated method stub
+		return false;
+	}
+
+	public boolean lt(int size) {
+		// TODO Auto-generated method stub
+		return false;
+	}
+
+	public Uint32 minus(int i) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
 }
