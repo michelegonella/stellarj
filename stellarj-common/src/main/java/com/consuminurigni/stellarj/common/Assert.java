@@ -27,7 +27,15 @@ public class Assert {
 
 	public static <T> T assertNotNull(T value) {
 		if(value == null) {
-			abort();
+			throw new NullPointerException();
+		}
+		return value;
+	}
+
+
+	public static <T> T assertNotNull(T value, String msg) {
+		if(value == null) {
+			throw new NullPointerException(msg);
 		}
 		return value;
 	}

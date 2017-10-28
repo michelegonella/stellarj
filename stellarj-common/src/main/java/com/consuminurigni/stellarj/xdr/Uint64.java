@@ -136,5 +136,13 @@ public /*TODO final*/ long uint64;
 		// TODO Auto-generated method stub
 		return false;
 	}
+	public boolean ne(long i) {
+		// TODO Auto-generated method stub
+		return false;
+	}
+	public Uint64 minus(Uint64 uint642) {
+		// TODO Auto-generated method stub
+		return null;
+	}
 
 }

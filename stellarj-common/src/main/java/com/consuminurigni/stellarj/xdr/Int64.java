@@ -80,4 +80,9 @@ public class Int64 extends XdrInteger {
 		return false;
 	}
 
+	public Int64 minus(Int64 totFee) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
 }

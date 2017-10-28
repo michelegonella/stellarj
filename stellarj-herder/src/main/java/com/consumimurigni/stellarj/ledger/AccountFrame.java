@@ -9,4 +9,14 @@ public class AccountFrame {
 		return null;
 	}
 
+	public Int64 getBalance() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	public Int64 getMinimumBalance(LedgerManager ledgerManager) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
 }

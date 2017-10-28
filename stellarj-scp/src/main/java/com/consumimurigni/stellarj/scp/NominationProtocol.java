@@ -26,8 +26,6 @@ import com.consuminurigni.stellarj.xdr.Int32;
 import com.consuminurigni.stellarj.xdr.NodeID;
 import com.consuminurigni.stellarj.xdr.Uint64;
 import com.consuminurigni.stellarj.xdr.Value;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
 
 public class NominationProtocol {
 	private static final Logger log = LogManager.getLogger();
@@ -529,35 +527,33 @@ public class NominationProtocol {
         mNominationStarted = false;
     }
 
-    JsonObject dumpInfo()
+    public void dumpInfo(LinkedHashMap<String, Object> ret)
     {
-    	JsonObject ret = new JsonObject();
-    	JsonObject nomState = new JsonObject();
-    	ret.add("nomination", nomState);
-        nomState.addProperty("roundnumber", mRoundNumber.intValue());
-        nomState.addProperty("started", mNominationStarted);
+    	LinkedHashMap<String, Object> nomState = new LinkedHashMap<>();
+    	ret.put("nomination", nomState);
+        nomState.put("roundnumber", mRoundNumber.intValue());
+        nomState.put("started", mNominationStarted);
 
-        JsonArray X = new JsonArray();
+        List<Object> X = new LinkedList<>();
         for (Value v : mVotes)
         {
             X.add(mSlot.getSCP().getValueString(v));
         }
-        nomState.add("X", X);
-        JsonArray Y = new JsonArray();
+        nomState.put("X", X);
+
+        List<Object> Y = new LinkedList<>();
         for (Value v : mAccepted)
         {
             Y.add(mSlot.getSCP().getValueString(v));
         }
-        nomState.add("Y", Y);
+        nomState.put("Y", Y);
 
-
-        JsonArray Z = new JsonArray();
+        List<Object> Z = new LinkedList<>();
         for (Value v : mCandidates)
         {
             Z.add(mSlot.getSCP().getValueString(v));
         }
-        nomState.add("Z", Z);
-        return ret;
+        nomState.put("Z", Z);
     }
 
     void setStateFromEnvelope(SCPEnvelope e)

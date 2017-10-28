@@ -89,5 +89,9 @@ boolean isZero()
 
     return true;
 }
+public Hash toHash() {
+	// TODO Auto-generated method stub
+	return null;
+}
 
 }

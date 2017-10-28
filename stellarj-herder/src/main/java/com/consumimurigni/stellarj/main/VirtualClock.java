@@ -1,7 +1,8 @@
-package com.consuminurigni.stellarj.common;
+package com.consumimurigni.stellarj.main;
 
 import java.time.Instant;
 
+import com.consumimurigni.stellarj.io.IOService;
 import com.consuminurigni.stellarj.xdr.Uint64;
 
 public class VirtualClock {

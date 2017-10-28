@@ -46,5 +46,10 @@ public class LedgerManager {
 	public Uint32 getLastClosedLedgerNum() {
 		// TODO Auto-generated method stub
 		return null;
+	}
+
+	public int getMaxTxSetSize() {
+		// TODO Auto-generated method stub
+		return 0;
 	};
 }

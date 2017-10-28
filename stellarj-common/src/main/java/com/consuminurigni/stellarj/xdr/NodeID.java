@@ -38,4 +38,8 @@ public byte[] encode() {
 	// TODO Auto-generated method stub
 	return null;
 }
+public static NodeID of(PublicKey n) {
+	// TODO Auto-generated method stub
+	return null;
+}
 }

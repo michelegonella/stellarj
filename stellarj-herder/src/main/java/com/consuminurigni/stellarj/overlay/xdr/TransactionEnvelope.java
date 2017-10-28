@@ -7,6 +7,8 @@ package com.consuminurigni.stellarj.overlay.xdr;
 import java.io.IOException;
 
 import com.consumimurigni.stellarj.ledger.xdr.Transaction;
+import com.consuminurigni.stellarj.xdr.DecoratedSignature;
+import com.consuminurigni.stellarj.xdr.Encodable;
 import com.consuminurigni.stellarj.xdr.XdrDataInputStream;
 import com.consuminurigni.stellarj.xdr.XdrDataOutputStream;
 
@@ -22,7 +24,7 @@ import com.consuminurigni.stellarj.xdr.XdrDataOutputStream;
 //  };
 
 //  ===========================================================================
-public class TransactionEnvelope  {
+public class TransactionEnvelope implements Encodable {
   public TransactionEnvelope () {}
   private Transaction tx;
   public Transaction getTx() {
@@ -56,4 +58,9 @@ public class TransactionEnvelope  {
     }
     return decodedTransactionEnvelope;
   }
+  @Override
+public byte[] encode() {
+	// TODO Auto-generated method stub
+	return null;
+}
 }

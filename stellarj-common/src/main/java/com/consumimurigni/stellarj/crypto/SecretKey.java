@@ -3,11 +3,16 @@ package com.consumimurigni.stellarj.crypto;
 import com.consuminurigni.stellarj.xdr.PublicKey;
 import com.consuminurigni.stellarj.xdr.Signature;
 
+//TODO
 public class SecretKey {
+	private KeyPair keyPair;
 
+
+	public SecretKey(KeyPair keyPair) {
+		this.keyPair = keyPair;
+	}
 	public PublicKey getPublicKey() {
-		// TODO Auto-generated method stub
-		return null;
+		return keyPair.getXdrPublicKey();
 	}
 
 	public Signature sign(byte[] pack) {
@@ -20,7 +25,12 @@ public class SecretKey {
 //	        throw std::runtime_error("error while signing");
 //	    }
 //	    return out;
-		return null;//TODO
+		Signature sig = new Signature();
+		sig.setSignature(keyPair.sign(pack));
+		return sig;
+	}
+	public static SecretKey fromSeed(byte[] hash) {
+		return new SecretKey(KeyPair.fromSecretSeed(hash));
 	}
 
 }

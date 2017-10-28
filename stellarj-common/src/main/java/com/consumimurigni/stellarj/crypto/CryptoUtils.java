@@ -28,4 +28,9 @@ public class CryptoUtils {
 	public static HashingFunction sha256() {
 		return SHA256;
 	}
+
+	public static byte[] sha256(byte[] in) {
+		return SHA256.apply(in);
+	}
+
 }

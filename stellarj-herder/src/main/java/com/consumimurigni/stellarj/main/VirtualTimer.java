@@ -1,9 +1,7 @@
-package com.consuminurigni.stellarj.common;
+package com.consumimurigni.stellarj.main;
 
 import java.time.Duration;
 import java.util.function.Consumer;
-
-import com.consumimurigni.stellarj.main.Application;
 
 public class VirtualTimer {
 

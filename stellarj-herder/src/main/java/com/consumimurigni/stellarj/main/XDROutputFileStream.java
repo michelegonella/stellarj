@@ -1,4 +1,4 @@
-package com.consuminurigni.stellarj.xdr;
+package com.consumimurigni.stellarj.main;
 
 import com.consumimurigni.stellarj.ledger.xdr.SCPHistoryEntry;
 

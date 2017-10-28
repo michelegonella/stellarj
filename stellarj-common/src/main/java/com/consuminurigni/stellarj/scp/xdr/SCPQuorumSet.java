@@ -6,6 +6,7 @@ package com.consuminurigni.stellarj.scp.xdr;
 
 import java.io.IOException;
 import java.math.BigInteger;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -18,7 +19,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
-import org.springframework.lang.Nullable;
+import javax.annotation.Nullable;
 
 import com.consuminurigni.stellarj.xdr.Encodable;
 import com.consuminurigni.stellarj.xdr.NodeID;
@@ -41,7 +42,17 @@ import com.consuminurigni.stellarj.xdr.XdrInteger;
 //  ===========================================================================
 public class SCPQuorumSet implements Encodable {
   public SCPQuorumSet () {}
-  private Uint32 threshold;
+  public SCPQuorumSet(SCPQuorumSet q) {
+	  setThreshold(q.getThreshold());
+	  SCPQuorumSet[] is = q.getInnerSets();
+	  SCPQuorumSet[] isCopy = new SCPQuorumSet[is.length];
+	  for(int i = 0; i < is.length; i++) {
+		  isCopy[i] = new SCPQuorumSet(is[i]);
+	  }
+	  setInnerSets(isCopy);
+	  setValidators(Arrays.copyOf(q.getValidators(), q.getValidators().length));
+}
+private Uint32 threshold;
   public Uint32 getThreshold() {
     return this.threshold;
   }

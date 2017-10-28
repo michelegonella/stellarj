@@ -30,7 +30,6 @@ import com.consumimurigni.stellarj.crypto.KeyUtils;
 import com.consumimurigni.stellarj.crypto.PubKeyUtils;
 import com.consumimurigni.stellarj.ledger.LedgerCloseData;
 import com.consumimurigni.stellarj.ledger.LedgerManager;
-import com.consumimurigni.stellarj.ledger.TxSetFrame;
 import com.consumimurigni.stellarj.ledger.xdr.AccountID;
 import com.consumimurigni.stellarj.ledger.xdr.LedgerHeader;
 import com.consumimurigni.stellarj.ledger.xdr.LedgerHeaderHistoryEntry;
@@ -47,6 +46,9 @@ import com.consumimurigni.stellarj.ledger.xdr.UpgradeType;
 import com.consumimurigni.stellarj.main.Application;
 import com.consumimurigni.stellarj.main.Database;
 import com.consumimurigni.stellarj.main.PersistentState;
+import com.consumimurigni.stellarj.main.VirtualClock;
+import com.consumimurigni.stellarj.main.VirtualTimer;
+import com.consumimurigni.stellarj.main.XDROutputFileStream;
 import com.consumimurigni.stellarj.scp.SCP;
 import com.consumimurigni.stellarj.scp.SCPDriver;
 import com.consumimurigni.stellarj.scp.Slot;
@@ -54,8 +56,6 @@ import com.consumimurigni.stellarj.transactions.TransactionFrame;
 import com.consuminurigni.stellarj.common.Assert;
 import com.consuminurigni.stellarj.common.Tuple2;
 import com.consuminurigni.stellarj.common.Vectors;
-import com.consuminurigni.stellarj.common.VirtualClock;
-import com.consuminurigni.stellarj.common.VirtualTimer;
 import com.consuminurigni.stellarj.overlay.Peer;
 import com.consuminurigni.stellarj.overlay.xdr.MessageType;
 import com.consuminurigni.stellarj.overlay.xdr.StellarMessage;
@@ -72,7 +72,6 @@ import com.consuminurigni.stellarj.xdr.Uint256;
 import com.consuminurigni.stellarj.xdr.Uint32;
 import com.consuminurigni.stellarj.xdr.Uint64;
 import com.consuminurigni.stellarj.xdr.Value;
-import com.consuminurigni.stellarj.xdr.XDROutputFileStream;
 import com.consuminurigni.stellarj.xdr.Xdr;
 
 public class Herder extends SCPDriver {
@@ -84,7 +83,7 @@ public class Herder extends SCPDriver {
 	// How many ledger in the future we consider an envelope viable.
 	private static final Uint32 LEDGER_VALIDITY_BRACKET = Uint32.ofPositiveInt(100);
 	// How many ledgers in the past we keep track of
-	private static final Uint32 MAX_SLOTS_TO_REMEMBER = Uint32.ofPositiveInt(4);
+	static final Uint32 MAX_SLOTS_TO_REMEMBER = Uint32.ofPositiveInt(4);
 
 	// Expected time between two ledger close.
 	private static final Duration EXP_LEDGER_TIMESPAN_SECONDS = Duration.ofSeconds(5);
@@ -965,7 +964,7 @@ public class Herder extends SCPDriver {
 	        // drop obsolete slots
 	        if (nextConsensusLedgerIndex().gt(MAX_SLOTS_TO_REMEMBER))
 	        {
-	            mPendingEnvelopes.eraseBelow(nextConsensusLedgerIndex().minus(MAX_SLOTS_TO_REMEMBER));
+	            mPendingEnvelopes.eraseBelow(nextConsensusLedgerIndex().minus(MAX_SLOTS_TO_REMEMBER).toUint64());
 	        }
 
 	        processSCPQueueUpToIndex(nextConsensusLedgerIndex().toUint64());
@@ -1011,7 +1010,7 @@ public class Herder extends SCPDriver {
 	    updateSCPCounters();
 	    log.trace("Herder HerderImpl::ledgerClosed");
 
-	    mPendingEnvelopes.slotClosed(lastConsensusLedgerIndex());
+	    mPendingEnvelopes.slotClosed(lastConsensusLedgerIndex().toUint64());
 
 	    mApp.getOverlayManager().ledgerClosed(lastConsensusLedgerIndex());
 
@@ -1191,8 +1190,7 @@ public class Herder extends SCPDriver {
 	        }
 	    }
 
-	    List<TransactionFrame> removed = new LinkedList<>();
-	    proposedSet.trimInvalid(mApp, removed);
+	    List<TransactionFrame> removed = proposedSet.trimInvalid(mApp);
 	    removeReceivedTxs(removed);
 
 	    proposedSet.surgePricingFilter(mLedgerManager);
@@ -1334,7 +1332,7 @@ public class Herder extends SCPDriver {
 	
 	
 	@Override
-	public SCPQuorumSet getQSet(Hash qSetHash) {
+	public @Nullable SCPQuorumSet getQSet(Hash qSetHash) {
 	    return mPendingEnvelopes.getQSet(qSetHash);
 	}
 
@@ -1459,7 +1457,7 @@ public class Herder extends SCPDriver {
 	    // tell the LedgerManager that this value got externalized
 	    // LedgerManager will perform the proper action based on its internal
 	    // state: apply, trigger catchup, etc
-	    LedgerCloseData ledgerData = new LedgerCloseData(lastConsensusLedgerIndex().toUint64(), externalizedSet, b);
+	    LedgerCloseData ledgerData = new LedgerCloseData(lastConsensusLedgerIndex(), externalizedSet, b);
 	    mLedgerManager.valueExternalized(ledgerData);
 
 	    // perform cleanups
@@ -1555,7 +1553,7 @@ public class Herder extends SCPDriver {
         return lastConsensusLedgerIndex().plus(1);
     }
 
-	void dumpInfo(Map<String,Object> ret, int limit)
+	void dumpInfo(LinkedHashMap<String,Object> ret, int limit)
 	{
 	    ret.put("you", mApp.getConfig().toStrKey(mSCP.getSecretKey().getPublicKey()));
 
@@ -1615,8 +1613,7 @@ public class Herder extends SCPDriver {
 	    List<TransactionSet> latestTxSets = new LinkedList<>();
 	    for (TxSetFrame it : txSets.values())
 	    {
-	    	TransactionSet ts = new TransactionSet();
-	    	it.toXDR(ts);
+	    	TransactionSet ts = it.toXDR();
 	        latestTxSets.add(ts);
 	    }
 
@@ -1659,7 +1656,7 @@ public class Herder extends SCPDriver {
 
 	    try
 	    {
-	        Xdr.xdr_from_opaque(buffer, latestEnvs, latestTxSets, latestQSets);
+	        xdr_from_opaque(buffer, latestEnvs, latestTxSets, latestQSets);//TODO
 
 	        for (TransactionSet txset : latestTxSets)
 	        {
@@ -1690,6 +1687,11 @@ public class Herder extends SCPDriver {
 	        // this should be the only time we get exceptions decoding old messages.
 	        log.info("Herder Error while restoring old scp messages, proceeding without them :{} ", e.getMessage());
 	    }
+	}
+	public static void xdr_from_opaque(byte[] buffer, List<SCPEnvelope> latestEnvs, List<TransactionSet> latestTxSets,
+			List<SCPQuorumSet> latestQSets) {
+		// TODO Auto-generated method stub
+		
 	}
 
 	void trackingHeartBeat()
@@ -1786,6 +1788,7 @@ public class Herder extends SCPDriver {
 		        {
 		            Hash qHash =
 		                Slot.getCompanionQuorumSetHashFromStatement(e.getStatement());
+		            //TODO should not happen butgetQSet can return null
 		            usedQSets.put(qHash, getQSet(qHash));
 
 		            String nodeIDStrKey = KeyUtils.toStrKey(e.getStatement().getNodeID());

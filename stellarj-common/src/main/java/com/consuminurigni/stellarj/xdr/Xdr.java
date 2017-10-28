@@ -3,12 +3,8 @@ package com.consuminurigni.stellarj.xdr;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.List;
 
-
-import com.consumimurigni.stellarj.ledger.xdr.TransactionSet;
 import com.consuminurigni.stellarj.scp.xdr.SCPEnvelope;
-import com.consuminurigni.stellarj.scp.xdr.SCPQuorumSet;
 
 public class Xdr {
 ////////////////////////////////////////////////////////////////
@@ -44,11 +40,6 @@ public static final Uint32 XDR_MAX_LEN = Uint32.of2ComplRepr(0xfffffffc);
 		return null;
 	}
 
-	public static void xdr_from_opaque(byte[] buffer, List<SCPEnvelope> latestEnvs, List<TransactionSet> latestTxSets,
-			List<SCPQuorumSet> latestQSets) {
-		// TODO Auto-generated method stub
-		
-	}
 
 	//TODO ????
 	public static boolean isSorted(Value[] vals) {
@@ -74,6 +65,21 @@ public static final Uint32 XDR_MAX_LEN = Uint32.of2ComplRepr(0xfffffffc);
 			}
 		}
 		return true;
+	}
+
+	//! Return a std::string containing a pretty-printed version an XDR
+	//! data type.  The string will contain multiple lines and end with a
+	//! newline.  \arg name if non-NULL, the string begins with the name
+	//! and an equals sign.  \arg indent specifies a non-zero minimum
+	//! indentation.
+	public static String xdr_to_string(Encodable xdrObj) {
+		return null;
+//	xdr_to_string(const T &t, const char *name = nullptr, int indent = 0)
+//	{
+//	  detail::Printer p(indent);
+//	  archive(p, t, name);
+//	  p.buf_ << std::endl;
+//	  return p.buf_.str();
 	}
 
 }

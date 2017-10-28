@@ -7,9 +7,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import javax.annotation.Nullable;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.springframework.lang.Nullable;
 
 import com.consumimurigni.stellarj.crypto.HashingFunction;
 import com.consumimurigni.stellarj.crypto.SecretKey;
@@ -35,7 +36,7 @@ public class SCP {
         VALID    // the envelope is valid
     };
 
-    enum TriBool
+    public enum TriBool
     {
         TB_TRUE,
         TB_FALSE,
@@ -255,7 +256,7 @@ public class SCP {
         }
     }
 
-    TriBool
+    public TriBool
     isNodeInQuorum(NodeID node)
     {
         TriBool res = TriBool.TB_MAYBE;
@@ -290,7 +291,7 @@ public class SCP {
 	    return ballot == null ? "(<null_ballot>)" : ballotToStrInternal(ballot);
 	}
 
-	String envToStr(SCPEnvelope envelope)
+	public String envToStr(SCPEnvelope envelope)
 	{
 	    return envToStr(envelope.getStatement());
 	}

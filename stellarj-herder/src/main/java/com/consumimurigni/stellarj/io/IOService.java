@@ -1,4 +1,4 @@
-package com.consuminurigni.stellarj.common;
+package com.consumimurigni.stellarj.io;
 
 public class IOService {
 

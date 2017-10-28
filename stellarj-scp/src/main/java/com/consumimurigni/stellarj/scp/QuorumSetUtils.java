@@ -39,4 +39,9 @@ public class QuorumSetUtils {
 	    	qSet.setStateFrom(qSet.getInnerSetAt(0));
 	    }
 	}
+
+	public static boolean isQuorumSetSane(SCPQuorumSet qSet, boolean extraChecks) {
+		    QuorumSetSanityChecker checker = new QuorumSetSanityChecker(qSet, extraChecks);
+		    return checker.isSane();
+	}
 }

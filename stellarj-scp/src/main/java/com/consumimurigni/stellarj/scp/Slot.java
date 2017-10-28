@@ -6,6 +6,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
 
+import javax.annotation.Nullable;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -258,7 +260,7 @@ public static List<Value> getStatementValues(SCPStatement st)
     return res;
 }
 
-SCPQuorumSet getQuorumSetFromStatement(SCPStatement st)
+@Nullable SCPQuorumSet getQuorumSetFromStatement(SCPStatement st)
 {
     SCPQuorumSet res;
     SCPStatementType t = st.getPledges().getDiscriminant();

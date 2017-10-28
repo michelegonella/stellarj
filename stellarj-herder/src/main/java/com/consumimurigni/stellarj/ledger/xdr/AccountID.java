@@ -31,4 +31,8 @@ public class AccountID  {//TODO extends PublicKey
   decodedAccountID.AccountID = PublicKey.decode(stream);
     return decodedAccountID;
   }
+public boolean lt(AccountID sourceID) {
+	// TODO Auto-generated method stub
+	return false;
+}
 }
