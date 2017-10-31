@@ -8,6 +8,7 @@ import com.codahale.metrics.Meter;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
 import com.consumimurigni.stellarj.ledger.LedgerManager;
+import com.consuminurigni.stellarj.overlay.OverlayManager;
 import com.consuminurigni.stellarj.xdr.Hash;
 
 public abstract class Application {

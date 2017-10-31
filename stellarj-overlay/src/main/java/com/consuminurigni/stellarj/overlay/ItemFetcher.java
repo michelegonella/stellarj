@@ -7,7 +7,6 @@ import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
-import com.consumimurigni.stellarj.main.Application;
 import com.consuminurigni.stellarj.common.Tuple2;
 import com.consuminurigni.stellarj.scp.xdr.SCPEnvelope;
 import com.consuminurigni.stellarj.xdr.Hash;

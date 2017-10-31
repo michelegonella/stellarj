@@ -248,6 +248,12 @@ public class KeyPair {
 
   @Override
   public boolean equals(Object obj) {
-    return super.equals(obj);
+    return obj instanceof KeyPair
+    	&& new String(((KeyPair)obj).getSecretSeed()).equals(new String(getSecretSeed()));
   }
+
+  @Override
+	public int hashCode() {
+		return new String(getSecretSeed()).hashCode();
+	}
 }

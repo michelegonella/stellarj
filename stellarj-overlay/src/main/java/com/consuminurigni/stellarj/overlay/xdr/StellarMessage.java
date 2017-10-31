@@ -6,7 +6,6 @@ package com.consuminurigni.stellarj.overlay.xdr;
 
 import java.io.IOException;
 
-import com.consumimurigni.stellarj.ledger.xdr.TransactionSet;
 import com.consuminurigni.stellarj.scp.xdr.SCPEnvelope;
 import com.consuminurigni.stellarj.scp.xdr.SCPQuorumSet;
 import com.consuminurigni.stellarj.xdr.Uint256;
@@ -102,18 +101,18 @@ public class StellarMessage  {
   public void setTxSetHash(Uint256 value) {
     this.txSetHash = value;
   }
-  private TransactionSet txSet;
-  public TransactionSet getTxSet() {
+  private AbstractTransactionSet txSet;
+  public AbstractTransactionSet getTxSet() {
     return this.txSet;
   }
-  public void setTxSet(TransactionSet value) {
+  public void setTxSet(AbstractTransactionSet value) {
     this.txSet = value;
   }
-  private TransactionEnvelope transaction;
-  public TransactionEnvelope getTransaction() {
+  private AbstractTransactionEnvelope transaction;
+  public AbstractTransactionEnvelope getTransaction() {
     return this.transaction;
   }
-  public void setTransaction(TransactionEnvelope value) {
+  public void setTransaction(AbstractTransactionEnvelope value) {
     this.transaction = value;
   }
   private Uint256 qSetHash;
@@ -172,10 +171,10 @@ public class StellarMessage  {
   Uint256.encode(stream, encodedStellarMessage.txSetHash);
   break;
   case TX_SET:
-  TransactionSet.encode(stream, encodedStellarMessage.txSet);
+  AbstractTransactionSet.encode(stream, encodedStellarMessage.txSet);
   break;
   case TRANSACTION:
-  TransactionEnvelope.encode(stream, encodedStellarMessage.transaction);
+  AbstractTransactionEnvelope.encode(stream, encodedStellarMessage.transaction);
   break;
   case GET_SCP_QUORUMSET:
   Uint256.encode(stream, encodedStellarMessage.qSetHash);
@@ -221,10 +220,10 @@ public class StellarMessage  {
   decodedStellarMessage.txSetHash = Uint256.decode(stream);
   break;
   case TX_SET:
-  decodedStellarMessage.txSet = TransactionSet.decode(stream);
+  decodedStellarMessage.txSet = AbstractTransactionSet.decode(stream);
   break;
   case TRANSACTION:
-  decodedStellarMessage.transaction = TransactionEnvelope.decode(stream);
+  decodedStellarMessage.transaction = AbstractTransactionEnvelope.decode(stream);
   break;
   case GET_SCP_QUORUMSET:
   decodedStellarMessage.qSetHash = Uint256.decode(stream);

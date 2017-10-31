@@ -41,7 +41,7 @@ public class Signer {
 
     /**
      * Create <code>preAuthTx</code> {@link org.stellar.sdk.xdr.SignerKey} from
-     * a {@link com.consumimurigni.stellarj.ledger.xdr.stellar.sdk.xdr.Transaction} hash.
+     * a {@link com.consumimurigni.stellarj.ledgerimpl.xdr.ledger.xdr.stellar.sdk.xdr.Transaction} hash.
      * @param tx
      * @return org.stellar.sdk.xdr.SignerKey
      */

@@ -4,7 +4,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Arrays;
 
-import com.consuminurigni.stellarj.common.Base32;
+import org.apache.commons.codec.binary.Base32;
+
 
 class StrKey {
     public enum VersionByte {

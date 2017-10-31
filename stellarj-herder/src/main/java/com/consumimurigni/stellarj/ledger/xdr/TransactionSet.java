@@ -6,7 +6,7 @@ package com.consumimurigni.stellarj.ledger.xdr;
 
 import java.io.IOException;
 
-import com.consuminurigni.stellarj.overlay.xdr.TransactionEnvelope;
+import com.consumimurigni.stellarj.ledgerimpl.xdr.TransactionEnvelope;
 import com.consuminurigni.stellarj.xdr.Encodable;
 import com.consuminurigni.stellarj.xdr.Hash;
 import com.consuminurigni.stellarj.xdr.XdrDataInputStream;

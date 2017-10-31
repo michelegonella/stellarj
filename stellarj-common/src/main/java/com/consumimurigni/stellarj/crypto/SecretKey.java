@@ -1,11 +1,16 @@
 package com.consumimurigni.stellarj.crypto;
 
+import java.io.IOException;
+import java.io.Writer;
+
+import com.consuminurigni.stellarj.common.Hex;
+import com.consuminurigni.stellarj.common.SecretValue;
 import com.consuminurigni.stellarj.xdr.PublicKey;
 import com.consuminurigni.stellarj.xdr.Signature;
 
 //TODO
 public class SecretKey {
-	private KeyPair keyPair;
+	private final KeyPair keyPair;
 
 
 	public SecretKey(KeyPair keyPair) {
@@ -31,6 +36,42 @@ public class SecretKey {
 	}
 	public static SecretKey fromSeed(byte[] hash) {
 		return new SecretKey(KeyPair.fromSecretSeed(hash));
+	}
+
+	public static void logPublicKey(Writer w, PublicKey pk) throws IOException
+	{
+		w.write("PublicKey:+\nstrKey: ");
+		w.write(KeyUtils.toStrKey(pk));
+		w.write("\nhex: ");
+		w.write(Hex.encode(pk.getEd25519().getUint256()));
+		w.write("\n");
+	}
+
+	public static void logSecretKey(Writer w, SecretKey sk) throws IOException
+	{
+		w.write("Seed:+\nstrKey: ");
+		w.write(sk.getStrKeySeed().getValue());
+		w.write("\n");
+	    logPublicKey(w, sk.getPublicKey());
+	}
+	public SecretValue getStrKeySeed() {
+		return new SecretValue(new String(keyPair.getSecretSeed()));
+	}
+	public static SecretKey fromStrKeySeed(String key) {
+		return new SecretKey(KeyPair.fromSecretSeed(key));
+	}
+	public static SecretKey random() {
+		return new SecretKey(KeyPair.random());
+	}
+
+	@Override
+	public int hashCode() {
+		return keyPair.hashCode();
+	}
+	@Override
+	public boolean equals(Object obj) {
+		return obj instanceof SecretKey
+			&& ((SecretKey)obj).keyPair.equals(keyPair);
 	}
 
 }

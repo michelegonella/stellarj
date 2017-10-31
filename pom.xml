@@ -12,6 +12,7 @@
     <module>stellarj-scp</module>
     <module>stellarj-herder</module>
     <module>stellarj-ledger</module>
+    <module>stellarj-overlay</module>
   </modules>
 </project>
 

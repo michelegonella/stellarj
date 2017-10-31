@@ -1,6 +1,9 @@
 package com.consuminurigni.stellarj.common;
 
+import static com.consuminurigni.stellarj.common.Assert.assertTrue;
 import static java.lang.Math.min;
+
+import com.consuminurigni.stellarj.xdr.Uint256;
 
 public class Hex {
 
@@ -36,4 +39,18 @@ public class Hex {
 		return enc.substring(0, min(4, enc.length()));
 	}
 
+
+public static Uint256 hexToBin256(String hex)
+{
+	if(hex.length() != 64) {
+		throw new IllegalArgumentException("wrong number of hex bytes when decoding uint256: " + hex.length());
+	}
+    return Uint256.of(decode(hex));
+}
+
+public static byte[] decode256(String hex) {
+	byte[] res = decode(hex);
+	assertTrue(res.length == 32);
+	return res;
+}
 }
