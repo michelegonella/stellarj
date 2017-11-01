@@ -18,8 +18,9 @@ import com.consumimurigni.stellarj.ledger.xdr.LedgerHeaderHistoryEntry;
 import com.consumimurigni.stellarj.ledger.xdr.SequenceNumber;
 import com.consumimurigni.stellarj.ledger.xdr.TransactionSet;
 import com.consumimurigni.stellarj.ledgerimpl.xdr.TransactionEnvelope;
-import com.consumimurigni.stellarj.main.Application;
 import com.consumimurigni.stellarj.transactions.TransactionFrame;
+import com.consuminurigni.stellarj.common.Database;
+import com.consuminurigni.stellarj.metering.Metrics;
 import com.consuminurigni.stellarj.xdr.Hash;
 import com.consuminurigni.stellarj.xdr.Int64;
 import com.consuminurigni.stellarj.xdr.Xdr;
@@ -85,17 +86,17 @@ public class TxSetFrame {
 	// need to make sure every account that is submitting a tx has enough to pay
 	// the fees of all the tx it has submitted in this set
 	// check seq num
-	public boolean checkValid(Application app) {
+	public boolean checkValid(LedgerManager ledgerManager, Metrics metrics) {
 	    // Establish read-only transaction for duration of checkValid.
 //	    soci::transaction sqltx(app.getDatabase().getSession());
 //	    app.getDatabase().setCurrentTransactionReadOnly();
 
-	    LedgerHeaderHistoryEntry lcl = app.getLedgerManager().getLastClosedLedgerHeader();
+	    LedgerHeaderHistoryEntry lcl = ledgerManager.getLastClosedLedgerHeader();
 	    // Start by checking previousLedgerHash
 	    if (! lcl.getHash().equals(mPreviousLedgerHash))
 	    {
 	        log.debug("Herder Got bad txSet: {} ; expected: {}", mPreviousLedgerHash.hexAbbrev(),
-	                   app.getLedgerManager().getLastClosedLedgerHeader().getHash().hexAbbrev());
+	        		ledgerManager.getLastClosedLedgerHeader().getHash().hexAbbrev());
 	        return false;
 	    }
 
@@ -135,7 +136,7 @@ public class TxSetFrame {
 	        Int64 totFee = Int64.of(0);
 	        for (TransactionFrame tx : item)
 	        {
-	            if (!tx.checkValid(app, lastSeq))
+	            if (!tx.checkValid(ledgerManager, metrics, lastSeq))
 	            {
 	                log.debug("Herder bad txSet: {} tx invalid lastSeq:{} tx:{} result:{} "
 	                    , mPreviousLedgerHash.hexAbbrev(), lastSeq.toString(), Xdr.xdr_to_string(tx.getEnvelope())
@@ -154,7 +155,7 @@ public class TxSetFrame {
 	            Int64 newBalance =
 	                lastTx.getSourceAccount().getBalance().minus(totFee);
 	            if (newBalance.lt(lastTx.getSourceAccount().getMinimumBalance(
-	                                 app.getLedgerManager())))
+	            		ledgerManager)))
 	            {
 	                log.debug("Herder bad txSet: {} account can't pay fee tx:{}", mPreviousLedgerHash.hexAbbrev(),Xdr.xdr_to_string(lastTx.getEnvelope()));
 
@@ -170,9 +171,9 @@ public class TxSetFrame {
 		return mTransactions;
 	}
 
-	public List<TransactionFrame> trimInvalid(Application app) {
+	public List<TransactionFrame> trimInvalid(Database database, LedgerManager ledgerManager, Metrics metrics) {
 //	    app.getDatabase().setCurrentTransactionReadOnly();
-		return app.getTransactionTemplate().execute((t)->{
+		return database.getTransactionTemplate().execute((t)->{
 			List<TransactionFrame> trimmed = new LinkedList<>();
 		    sortForHash();
 		    TreeMap<AccountID, List<TransactionFrame>> accountTxMap = new TreeMap<>();
@@ -195,7 +196,7 @@ public class TxSetFrame {
 		        Int64 totFee = Int64.of(0);
 		        for (TransactionFrame tx : item)
 		        {
-		            if (!tx.checkValid(app, lastSeq))
+		            if (!tx.checkValid(ledgerManager, metrics, lastSeq))
 		            {
 		                trimmed.add(tx);
 		                removeTx(tx);
@@ -212,7 +213,7 @@ public class TxSetFrame {
 		            Int64 newBalance =
 		                lastTx.getSourceAccount().getBalance().minus(totFee);
 		            if (newBalance.lt(lastTx.getSourceAccount().getMinimumBalance(
-		                                 app.getLedgerManager())))
+		                                 ledgerManager)))
 		            {
 		                for (TransactionFrame tx2 : item)
 		                {

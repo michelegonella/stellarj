@@ -1,4 +1,4 @@
-package com.consumimurigni.stellarj.main;
+package com.consuminurigni.stellarj.common;
 
 import java.time.Instant;
 
@@ -20,6 +20,11 @@ public class VirtualClock {
 	public static Uint64 to_time_t(Instant mLastTrigger) {
 		// TODO Auto-generated method stub
 		return null;
+	}
+
+	public long timeNow() {
+		// TODO Auto-generated method stub
+		return 0;
 	}
 
 }

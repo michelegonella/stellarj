@@ -1,4 +1,4 @@
-package com.consumimurigni.stellarj.main;
+package com.consuminurigni.stellarj.common;
 
 import java.time.Instant;
 import java.util.List;
@@ -8,8 +8,6 @@ import java.util.Optional;
 import javax.annotation.Nullable;
 
 import com.consumimurigni.stellarj.crypto.SecretKey;
-import com.consumimurigni.stellarj.history.HistoryArchive;
-import com.consuminurigni.stellarj.common.SecretValue;
 import com.consuminurigni.stellarj.scp.xdr.SCPQuorumSet;
 import com.consuminurigni.stellarj.xdr.Int32;
 import com.consuminurigni.stellarj.xdr.PublicKey;

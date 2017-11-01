@@ -44,20 +44,25 @@ import com.consumimurigni.stellarj.ledger.xdr.TransactionResultCode;
 import com.consumimurigni.stellarj.ledger.xdr.TransactionSet;
 import com.consumimurigni.stellarj.ledger.xdr.UpgradeType;
 import com.consumimurigni.stellarj.main.Application;
-import com.consumimurigni.stellarj.main.Database;
-import com.consumimurigni.stellarj.main.PersistentState;
-import com.consumimurigni.stellarj.main.VirtualClock;
-import com.consumimurigni.stellarj.main.VirtualTimer;
 import com.consumimurigni.stellarj.main.XDROutputFileStream;
+import com.consumimurigni.stellarj.scp.Herder;
 import com.consumimurigni.stellarj.scp.SCP;
 import com.consumimurigni.stellarj.scp.SCPDriver;
 import com.consumimurigni.stellarj.scp.Slot;
 import com.consumimurigni.stellarj.transactions.TransactionFrame;
 import com.consuminurigni.stellarj.common.Assert;
+import com.consuminurigni.stellarj.common.Config;
+import com.consuminurigni.stellarj.common.Database;
+import com.consuminurigni.stellarj.common.JsonSerde;
+import com.consuminurigni.stellarj.common.PersistentState;
 import com.consuminurigni.stellarj.common.Tuple2;
 import com.consuminurigni.stellarj.common.Vectors;
+import com.consuminurigni.stellarj.common.VirtualClock;
+import com.consuminurigni.stellarj.common.VirtualTimer;
+import com.consuminurigni.stellarj.common.VirtualTimerCallback;
+import com.consuminurigni.stellarj.metering.Metrics;
+import com.consuminurigni.stellarj.overlay.OverlayManager;
 import com.consuminurigni.stellarj.overlay.Peer;
-import com.consuminurigni.stellarj.overlay.xdr.MessageType;
 import com.consuminurigni.stellarj.overlay.xdr.StellarMessage;
 import com.consuminurigni.stellarj.scp.xdr.SCPBallot;
 import com.consuminurigni.stellarj.scp.xdr.SCPEnvelope;
@@ -66,6 +71,7 @@ import com.consuminurigni.stellarj.scp.xdr.ValueSet;
 import com.consuminurigni.stellarj.xdr.EnvelopeType;
 import com.consuminurigni.stellarj.xdr.Hash;
 import com.consuminurigni.stellarj.xdr.Int64;
+import com.consuminurigni.stellarj.xdr.MessageType;
 import com.consuminurigni.stellarj.xdr.NodeID;
 import com.consuminurigni.stellarj.xdr.PublicKey;
 import com.consuminurigni.stellarj.xdr.Uint256;
@@ -74,7 +80,7 @@ import com.consuminurigni.stellarj.xdr.Uint64;
 import com.consuminurigni.stellarj.xdr.Value;
 import com.consuminurigni.stellarj.xdr.Xdr;
 
-public class Herder extends SCPDriver {
+public class HerderImpl extends Herder {
 	private static final Logger log = LogManager.getLogger();
 
 	// the value of LEDGER_VALIDITY_BRACKET should be in the order of
@@ -106,19 +112,6 @@ public class Herder extends SCPDriver {
 
 	enum TransactionSubmitStatus {
 		TX_STATUS_PENDING, TX_STATUS_DUPLICATE, TX_STATUS_ERROR, TX_STATUS_COUNT
-	};
-
-	enum EnvelopeStatus {
-		// for some reason this envelope was discarded - either is was invalid,
-		// used unsane qset or was coming from node that is not in quorum
-		ENVELOPE_STATUS_DISCARDED,
-		// envelope data is currently being fetched
-		ENVELOPE_STATUS_FETCHING,
-		// current call to recvSCPEnvelope() was the first when the envelope
-		// was fully fetched so it is ready for processing
-		ENVELOPE_STATUS_READY,
-		// envelope was already processed
-		ENVELOPE_STATUS_PROCESSED,
 	};
 
 	////////////
@@ -235,34 +228,45 @@ public class Herder extends SCPDriver {
 
 	private final LinkedHashMap<Uint64, Map<Integer, VirtualTimer>> mSCPTimers = new LinkedHashMap<>();
 
-	private final Application mApp;
+	private final VirtualClock virtualClock;
 	private final LedgerManager mLedgerManager;
-
+	private final Config config;
+	private final Metrics metrics;
 	private final SCPMetrics mSCPMetrics;
-
+	private final Hash networkID;
+	private final JsonSerde jsonSerde;
+	private final Database database;
+	private final OverlayManager overlayManager;
+	private final PersistentState persistentState;
 	////////////
-	public static Herder create(Application app) {
-		return new Herder(app);
+	public static HerderImpl create(Hash networkID, VirtualClock virtualClock, Config config, LedgerManager ledgerManager, Database database, JsonSerde jsonSerde,OverlayManager overlayManager, PersistentState persistentState, Metrics metrics) {
+		return new HerderImpl(networkID, virtualClock, config, ledgerManager, database, jsonSerde, overlayManager, persistentState, metrics);
 	}
-	private final Application app;
-	private Herder(Application app) {
-		this.app = app;
-		mSCP = new SCP(this, app.getConfig().NODE_SEED, app.getConfig().NODE_IS_VALIDATOR, app.getConfig().QUORUM_SET);
-		mPendingEnvelopes = new PendingEnvelopes(app, this);
+	private HerderImpl(Hash networkID, VirtualClock virtualClock, Config config, LedgerManager ledgerManager, Database database, JsonSerde jsonSerde,OverlayManager overlayManager, PersistentState persistentState, Metrics metrics) {
+		this.metrics = metrics;
+		this.persistentState = persistentState;
+		this.jsonSerde = jsonSerde;
+		this.overlayManager = overlayManager;
+		this.database = database;
+		this.config = config;
+		this.networkID = networkID;
+		this.virtualClock = virtualClock;
+		mSCP = new SCP(this, config.NODE_SEED, config.NODE_IS_VALIDATOR, config.QUORUM_SET);
+		mPendingEnvelopes = new PendingEnvelopes(this, overlayManager, virtualClock, metrics, config);
 		mLastSlotSaved = Uint64.ZERO;
-		Instant now = app.getClock().now();
+		Instant now = virtualClock.now();
 		mLastStateChange = now;
-		mTrackingTimer = new VirtualTimer(app);
+		mTrackingTimer = new VirtualTimer(virtualClock);
 		mLastTrigger = now;
-		mTriggerTimer = new VirtualTimer(app);
-		mRebroadcastTimer = new VirtualTimer(app);
-		mApp = app;
-		mLedgerManager = app.getLedgerManager();
-		mSCPMetrics = new SCPMetrics(app);
+		mTriggerTimer = new VirtualTimer(virtualClock);
+		mRebroadcastTimer = new VirtualTimer(virtualClock);
+		mLedgerManager = ledgerManager;
+		mSCPMetrics = new SCPMetrics(metrics);
 		Hash hash = mSCP.getLocalNode().getQuorumSetHash();
 		mPendingEnvelopes.addSCPQuorumSet(hash, Uint64.ZERO, mSCP.getLocalNode().getQuorumSet());
 	}
 
+	@Override
 	public SCP getSCP() {
 		return mSCP;
 	}
@@ -289,22 +293,22 @@ public class Herder extends SCPDriver {
 	void stateChanged()
 	{
 	    //TODO mSCPMetrics.mHerderStateCurrent.set_count(static_cast<int64_t>(getState()));
-	    Instant now = mApp.getClock().now();
+	    Instant now = virtualClock.now();
 	    mSCPMetrics.mHerderStateChanges.update(now.toEpochMilli() - mLastStateChange.toEpochMilli(), TimeUnit.MILLISECONDS);//TODO ?? npe mLastStateChange
 	    mLastStateChange = now;
-	    mApp.syncOwnMetrics();
+	    //TODO mApp.syncOwnMetrics();
 	}
 
 	void bootstrap()
 	{
 	    log.info("Herder Force joining SCP with local state");
 	    assert(mSCP.isValidator());
-	    assert(mApp.getConfig().FORCE_SCP);
+	    assert(config.FORCE_SCP);
 
 	    mLedgerManager.setState(LedgerManager.State.LM_SYNCED_STATE);
 	    stateChanged();
 
-	    mLastTrigger = mApp.getClock().now().minus(EXP_LEDGER_TIMESPAN_SECONDS);
+	    mLastTrigger = virtualClock.now().minus(EXP_LEDGER_TIMESPAN_SECONDS);
 	    ledgerClosed();
 	}
 
@@ -365,7 +369,7 @@ public class Herder extends SCPDriver {
 	    }
 
 	    // Check closeTime (not too far in future)
-	    long timeNow = mApp.timeNow();
+	    long timeNow = virtualClock.timeNow();
 	    if (b.getCloseTime().gt(timeNow + MAX_TIME_SLIP_SECONDS.getSeconds()))
 	    {
 	        return SCPDriver.ValidationLevel.kInvalidValue;
@@ -391,7 +395,7 @@ public class Herder extends SCPDriver {
 
 	        res = SCPDriver.ValidationLevel.kInvalidValue;
 	    }
-	    else if (!txSet.checkValid(mApp))
+	    else if (!txSet.checkValid(mLedgerManager, metrics))
 	    {
 	            log.debug("Herder HerderImpl::validateValue i: {} Invalid txSet: {}"
 	            	, slotIndex.toString(),txSet.getContentsHash().hexAbbrev());
@@ -426,7 +430,7 @@ public class Herder extends SCPDriver {
 	    case LEDGER_UPGRADE_VERSION:
 	    {
 	        Uint32 newVersion = lupgrade.getNewLedgerVersion();
-	        res = (newVersion == mApp.getConfig().LEDGER_PROTOCOL_VERSION);
+	        res = (newVersion == config.LEDGER_PROTOCOL_VERSION);
 	    }
 	    break;
 	    case LEDGER_UPGRADE_BASE_FEE:
@@ -434,16 +438,16 @@ public class Herder extends SCPDriver {
 	        Uint32 newFee = lupgrade.getNewBaseFee();
 	        // allow fee to move within a 2x distance from the one we have in our
 	        // config
-	        res = (newFee.gte(mApp.getConfig().DESIRED_BASE_FEE.mul(.5)) &&
-	              (newFee.lte(mApp.getConfig().DESIRED_BASE_FEE.mul(2))));
+	        res = (newFee.gte(config.DESIRED_BASE_FEE.mul(.5)) &&
+	              (newFee.lte(config.DESIRED_BASE_FEE.mul(2))));
 	    }
 	    break;
 	    case LEDGER_UPGRADE_MAX_TX_SET_SIZE:
 	    {
 	        // allow max to be within 30% of the config value
 	        Uint32 newMax = lupgrade.getNewMaxTxSetSize();
-	        res = (newMax.gte(mApp.getConfig().DESIRED_MAX_TX_PER_LEDGER.mul(0.7))) &&
-	              (newMax.lte(mApp.getConfig().DESIRED_MAX_TX_PER_LEDGER.mul(1.3)));
+	        res = (newMax.gte(config.DESIRED_MAX_TX_PER_LEDGER.mul(0.7))) &&
+	              (newMax.lte(config.DESIRED_MAX_TX_PER_LEDGER.mul(1.3)));
 	    }
 	    break;
 	    default:
@@ -461,7 +465,7 @@ public class Herder extends SCPDriver {
 	public void signEnvelope(SCPEnvelope envelope) {
 	    mSCPMetrics.mEnvelopeSign.mark();
 	    envelope.setSignature(mSCP.getSecretKey().sign(Xdr.pack(
-	        mApp.getNetworkID().encode(), EnvelopeType.ENVELOPE_TYPE_SCP.encode(), envelope.getStatement().encode())));
+	        networkID.encode(), EnvelopeType.ENVELOPE_TYPE_SCP.encode(), envelope.getStatement().encode())));
 	}
 
 	@Override
@@ -469,7 +473,7 @@ public class Herder extends SCPDriver {
 	    boolean b = PubKeyUtils.verifySig(
 	        envelope.getStatement().getNodeID(), envelope.getSignature(),
 	        Xdr.pack(
-	    	        mApp.getNetworkID().encode(), EnvelopeType.ENVELOPE_TYPE_SCP.encode(), envelope.getStatement().encode()));
+	        		networkID.encode(), EnvelopeType.ENVELOPE_TYPE_SCP.encode(), envelope.getStatement().encode()));
 	    if (b)
 	    {
 	        mSCPMetrics.mEnvelopeValidSig.mark();
@@ -568,7 +572,7 @@ public class Herder extends SCPDriver {
 	@Override
 	public String toShortString(PublicKey pk)
 	{
-	    return mApp.getConfig().toShortString(pk);
+	    return config.toShortString(pk);
 	}
 
 	@Override
@@ -638,7 +642,7 @@ public class Herder extends SCPDriver {
 	        Object i = slots.get(indexs);
 	        if (i != null)
 	        {
-	            log.info("Herder Quorum information for {} : {}",index.toString(), app.toJsonString(i));
+	            log.info("Herder Quorum information for {} : {}",index.toString(), jsonSerde.toJsonString(i));
 	        }
 	    }
 	}
@@ -755,7 +759,7 @@ public class Herder extends SCPDriver {
 	    comp.setUpgrades(l.toArray(new UpgradeType[l.size()]));
 
 	    // just to be sure
-	    List<TransactionFrame> removed =  bestTxSet.trimInvalid(mApp);
+	    List<TransactionFrame> removed =  bestTxSet.trimInvalid(database, mLedgerManager, metrics);
 	    comp.setTxSetHash(bestTxSet.getContentsHash());
 
 	    if (removed.size() != 0)
@@ -763,7 +767,7 @@ public class Herder extends SCPDriver {
 	        log.warn("Herder Candidate set had {} invalid transactions", removed.size());
 
 	        // post to avoid triggering SCP handling code recursively
-	        mApp.getClock().getIOService().post(() -> {
+	        virtualClock.getIOService().post(() -> {
 	            mPendingEnvelopes.recvTxSet(bestTxSet.getContentsHash(),
 	                                        bestTxSet);
 	        });
@@ -784,7 +788,7 @@ public class Herder extends SCPDriver {
 
 	void broadcast(SCPEnvelope e)
 	{
-	    if (!mApp.getConfig().MANUAL_CLOSE)
+	    if (!config.MANUAL_CLOSE)
 	    {
 	        StellarMessage m = new StellarMessage();
 	        m.setDiscriminant(MessageType.SCP_MESSAGE);
@@ -793,7 +797,7 @@ public class Herder extends SCPDriver {
 	        log.debug("Herder broadcast  s:{}  i:{}", e.getStatement().getPledges().getDiscriminant().name(), e.getStatement().getSlotIndex().toString());
 
 	        mSCPMetrics.mEnvelopeEmit.mark();
-	        mApp.getOverlayManager().broadcastMessage(m, true);
+	        overlayManager.broadcastMessage(m, true);
 	    }
 	}
 
@@ -833,7 +837,7 @@ public class Herder extends SCPDriver {
 	        }
 	    }
 
-	    if (!tx.checkValid(mApp, highSeq))
+	    if (!tx.checkValid(mLedgerManager, metrics, highSeq))
 	    {
 	        return TransactionSubmitStatus.TX_STATUS_ERROR;
 	    }
@@ -852,23 +856,24 @@ public class Herder extends SCPDriver {
 	    return TransactionSubmitStatus.TX_STATUS_PENDING;
 	}
 
-	Herder.EnvelopeStatus recvSCPEnvelope(SCPEnvelope envelope)
+	@Override
+	public Herder.EnvelopeStatus recvSCPEnvelope(SCPEnvelope envelope)
 	{
-	    if (mApp.getConfig().MANUAL_CLOSE)
+	    if (config.MANUAL_CLOSE)
 	    {
-	        return Herder.EnvelopeStatus.ENVELOPE_STATUS_DISCARDED;
+	        return HerderImpl.EnvelopeStatus.ENVELOPE_STATUS_DISCARDED;
 	    }
 
 	        log.debug("Herder recvSCPEnvelope from: {} s:{} i:{} a:{}",
 	        	envelope.getStatement().getNodeID().toShortString(),
 	        	envelope.getStatement().getPledges().getDiscriminant().name(),
 	        	envelope.getStatement().getSlotIndex(),
-	        	mApp.getStateHuman());
+	        	Application.getStateHuman(this, mLedgerManager));
 
 	    if (envelope.getStatement().getNodeID().eq(mSCP.getLocalNode().getNodeID()))
 	    {
 	        log.debug("Herder recvSCPEnvelope: skipping own message");
-	        return Herder.EnvelopeStatus.ENVELOPE_STATUS_DISCARDED;
+	        return HerderImpl.EnvelopeStatus.ENVELOPE_STATUS_DISCARDED;
 	    }
 
 	    mSCPMetrics.mEnvelopeReceive.mark();
@@ -898,11 +903,11 @@ public class Herder extends SCPDriver {
 	    {
 	        log.debug("Herder Ignoring SCPEnvelope outside of range: {} ( {}, {} )",
 	        		envelope.getStatement().getSlotIndex().toString(),minLedgerSeq.toString(),maxLedgerSeq.toString());
-	        return Herder.EnvelopeStatus.ENVELOPE_STATUS_DISCARDED;
+	        return HerderImpl.EnvelopeStatus.ENVELOPE_STATUS_DISCARDED;
 	    }
 
-	    Herder.EnvelopeStatus status = mPendingEnvelopes.recvSCPEnvelope(envelope);
-	    if (status == Herder.EnvelopeStatus.ENVELOPE_STATUS_READY)
+	    HerderImpl.EnvelopeStatus status = mPendingEnvelopes.recvSCPEnvelope(envelope);
+	    if (status == HerderImpl.EnvelopeStatus.ENVELOPE_STATUS_READY)
 	    {
 	        processSCPQueue();
 	    }
@@ -1012,7 +1017,7 @@ public class Herder extends SCPDriver {
 
 	    mPendingEnvelopes.slotClosed(lastConsensusLedgerIndex().toUint64());
 
-	    mApp.getOverlayManager().ledgerClosed(lastConsensusLedgerIndex());
+	    overlayManager.ledgerClosed(lastConsensusLedgerIndex());
 
 	    Uint32 nextIndex = nextConsensusLedgerIndex();
 
@@ -1041,17 +1046,17 @@ public class Herder extends SCPDriver {
 	    }
 
 	    Duration seconds = EXP_LEDGER_TIMESPAN_SECONDS;
-	    if (mApp.getConfig().ARTIFICIALLY_ACCELERATE_TIME_FOR_TESTING)
+	    if (config.ARTIFICIALLY_ACCELERATE_TIME_FOR_TESTING)
 	    {
 	        seconds = Duration.ofSeconds(1);
 	    }
-	    if (mApp.getConfig().ARTIFICIALLY_SET_CLOSE_TIME_FOR_TESTING.gt(0))
+	    if (config.ARTIFICIALLY_SET_CLOSE_TIME_FOR_TESTING.gt(0))
 	    {
 	        seconds = Duration.ofSeconds(
-	            mApp.getConfig().ARTIFICIALLY_SET_CLOSE_TIME_FOR_TESTING.longValue());
+	            config.ARTIFICIALLY_SET_CLOSE_TIME_FOR_TESTING.longValue());
 	    }
 
-	    Instant now = mApp.getClock().now();
+	    Instant now = virtualClock.now();
 	    Duration dur = Duration.between(mLastTrigger, now);
 	    if (dur.compareTo(seconds) < 0)//cpp (now - mLastTrigger) < seconds
 	    {
@@ -1063,7 +1068,7 @@ public class Herder extends SCPDriver {
 	        mTriggerTimer.expires_from_now(Duration.ofNanos(0));
 	    }
 
-	    if (!mApp.getConfig().MANUAL_CLOSE)
+	    if (!config.MANUAL_CLOSE)
 	        mTriggerTimer.async_wait(()-> triggerNextLedger(nextIndex),
 	                                 VirtualTimer::onFailureNoop);
 	}
@@ -1121,7 +1126,7 @@ public class Herder extends SCPDriver {
 	    return mPendingEnvelopes.recvTxSet(hash, txset);
 	}
 
-	void peerDoesntHave(MessageType type, Uint256 itemID,
+	void peerDoesntHave(MessageType type, Hash/*c++ Uint256*/ itemID,
 	                           Peer peer)
 	{
 	    mPendingEnvelopes.peerDoesntHave(type, itemID, peer);
@@ -1133,7 +1138,8 @@ public class Herder extends SCPDriver {
 	}
 
 
-	Uint32 getCurrentLedgerSeq()
+	@Override
+	public Uint32 getCurrentLedgerSeq()
 	{
 	    Uint32 res = mLedgerManager.getLastClosedLedgerNum();
 
@@ -1169,7 +1175,7 @@ public class Herder extends SCPDriver {
 	{
 	    if (mTrackingSCP != null || ! mLedgerManager.isSynced())
 	    {
-	        log.debug("Herder triggerNextLedger: skipping (out of sync) : {}",mApp.getStateHuman());
+	        log.debug("Herder triggerNextLedger: skipping (out of sync) : {}", Application.getStateHuman(this, mLedgerManager));
 	        return;
 	    }
 	    updateSCPCounters();
@@ -1190,12 +1196,12 @@ public class Herder extends SCPDriver {
 	        }
 	    }
 
-	    List<TransactionFrame> removed = proposedSet.trimInvalid(mApp);
+	    List<TransactionFrame> removed = proposedSet.trimInvalid(database, mLedgerManager, metrics);
 	    removeReceivedTxs(removed);
 
 	    proposedSet.surgePricingFilter(mLedgerManager);
 
-	    if (!proposedSet.checkValid(mApp))
+	    if (!proposedSet.checkValid(mLedgerManager, metrics))
 	    {
 	        throw new RuntimeException("wanting to emit an invalid txSet");
 	    }
@@ -1219,7 +1225,7 @@ public class Herder extends SCPDriver {
 	    }
 
 	    // We store at which time we triggered consensus
-	    mLastTrigger = mApp.getClock().now();
+	    mLastTrigger = virtualClock.now();
 
 	    // We pick as next close time the current time unless it's before the last
 	    // close time. We don't know how much time it will take to reach consensus
@@ -1266,32 +1272,32 @@ public class Herder extends SCPDriver {
 	{
 		List<LedgerUpgrade> result = new LinkedList<>();
 
-	    if (header.getLedgerVersion().ne(mApp.getConfig().LEDGER_PROTOCOL_VERSION))
+	    if (header.getLedgerVersion().ne(config.LEDGER_PROTOCOL_VERSION))
 	    {
 	        boolean timeForUpgrade =
-	            !mApp.getConfig().PREFERRED_UPGRADE_DATETIME.isPresent() ||
-	            mApp.getConfig().PREFERRED_UPGRADE_DATETIME.get().isBefore(
-	                mApp.getClock().now());//TODO or same
+	            !config.PREFERRED_UPGRADE_DATETIME.isPresent() ||
+	            config.PREFERRED_UPGRADE_DATETIME.get().isBefore(
+	                virtualClock.now());//TODO or same
 	        if (timeForUpgrade)
 	        {
 	        	LedgerUpgrade lu = new LedgerUpgrade();
 	        	lu.setDiscriminant(LedgerUpgradeType.LEDGER_UPGRADE_VERSION);
-	        	lu.setNewLedgerVersion(mApp.getConfig().LEDGER_PROTOCOL_VERSION);
+	        	lu.setNewLedgerVersion(config.LEDGER_PROTOCOL_VERSION);
 	            result.add(lu);
 	        }
 	    }
-	    if (header.getBaseFee().ne(mApp.getConfig().DESIRED_BASE_FEE))
+	    if (header.getBaseFee().ne(config.DESIRED_BASE_FEE))
 	    {
         	LedgerUpgrade lu = new LedgerUpgrade();
         	lu.setDiscriminant(LedgerUpgradeType.LEDGER_UPGRADE_BASE_FEE);
-        	lu.setNewLedgerVersion(mApp.getConfig().DESIRED_BASE_FEE);
+        	lu.setNewLedgerVersion(config.DESIRED_BASE_FEE);
             result.add(lu);
 	    }
-	    if (header.getMaxTxSetSize().ne(mApp.getConfig().DESIRED_MAX_TX_PER_LEDGER))
+	    if (header.getMaxTxSetSize().ne(config.DESIRED_MAX_TX_PER_LEDGER))
 	    {
         	LedgerUpgrade lu = new LedgerUpgrade();
         	lu.setDiscriminant(LedgerUpgradeType.LEDGER_UPGRADE_MAX_TX_SET_SIZE);
-        	lu.setNewLedgerVersion(mApp.getConfig().DESIRED_MAX_TX_PER_LEDGER);
+        	lu.setNewLedgerVersion(config.DESIRED_MAX_TX_PER_LEDGER);
             result.add(lu);
 	    }
 
@@ -1300,7 +1306,7 @@ public class Herder extends SCPDriver {
 
 	@Nullable PublicKey resolveNodeID(String s)
 	{
-		@Nullable PublicKey retKey = mApp.getConfig().resolveNodeID(s);
+		@Nullable PublicKey retKey = config.resolveNodeID(s);
 	    if (retKey == null)
 	    {
 	        if (s.length() > 1 && s.charAt(0) == '@')
@@ -1341,7 +1347,7 @@ public class Herder extends SCPDriver {
 	    Uint64 slotIndex = envelope.getStatement().getSlotIndex();
 
         log.debug("Herder emitEnvelope s:{} i:{} a:{}", 
-        	envelope.getStatement().getPledges().getDiscriminant().name(), slotIndex.toString(), mApp.getStateHuman());
+        	envelope.getStatement().getPledges().getDiscriminant().name(), slotIndex.toString(), Application.getStateHuman(this, mLedgerManager));
 
     persistSCPState(slotIndex);
 
@@ -1518,7 +1524,7 @@ public class Herder extends SCPDriver {
 
 	public void setupTimer(Uint64 slotIndex, Slot.timerIDs timerID,
 	                       Duration timeout,
-	                       Runnable cb)
+	                       VirtualTimerCallback cb)
 	{
 	    // don't setup timers for old slots
 	    if (slotIndex.lte(getCurrentLedgerSeq().toUint64()))
@@ -1532,7 +1538,7 @@ public class Herder extends SCPDriver {
 	    VirtualTimer timer = slotTimers.get(timerID.ordinal());
 	    if (timer == null)
 	    {
-	    	timer = new VirtualTimer(mApp);
+	    	timer = new VirtualTimer(virtualClock);
 	    	slotTimers.put(timerID.ordinal(), timer);
 	    }
 	    timer.cancel();
@@ -1555,7 +1561,7 @@ public class Herder extends SCPDriver {
 
 	void dumpInfo(LinkedHashMap<String,Object> ret, int limit)
 	{
-	    ret.put("you", mApp.getConfig().toStrKey(mSCP.getSecretKey().getPublicKey()));
+	    ret.put("you", config.toStrKey(mSCP.getSecretKey().getPublicKey()));
 
 	    mSCP.dumpInfo(ret, limit);
 
@@ -1565,7 +1571,7 @@ public class Herder extends SCPDriver {
 	void dumpQuorumInfo(LinkedHashMap<String,Object> ret, NodeID id, boolean summary,
 	                           Uint64 index)
 	{
-	    ret.put("node", mApp.getConfig().toStrKey(id));
+	    ret.put("node", config.toStrKey(id));
 	    @SuppressWarnings("unchecked")
 		LinkedHashMap<String,Object> slots = (LinkedHashMap<String,Object>)ret.get("slots");
 	    if(slots == null) {
@@ -1627,7 +1633,7 @@ public class Herder extends SCPDriver {
 	        Xdr.packObjects(latestEnvs, latestTxSets, latestQSets);
 	    String scpState = Base64.getEncoder().encodeToString(latestSCPData);
 
-	    mApp.getPersistentState().setState(PersistentState.Entry.kLastSCPData, scpState);
+	    persistentState.setState(PersistentState.Entry.kLastSCPData, scpState);
 	}
 
 	void restoreSCPState()
@@ -1641,7 +1647,7 @@ public class Herder extends SCPDriver {
 
 	    // load saved state from database
 	    String latest64 =
-	        mApp.getPersistentState().getState(PersistentState.Entry.kLastSCPData);
+	        persistentState.getState(PersistentState.Entry.kLastSCPData);
 
 	    if (latest64.isEmpty())
 	    {
@@ -1661,7 +1667,7 @@ public class Herder extends SCPDriver {
 	        for (TransactionSet txset : latestTxSets)
 	        {
 	            TxSetFrame cur =
-	                new TxSetFrame(mApp.getNetworkID(), txset);
+	                new TxSetFrame(networkID, txset);
 	            Hash h = cur.getContentsHash();
 	            mPendingEnvelopes.addTxSet(h, Uint32.ZERO, cur);
 	        }
@@ -1696,7 +1702,7 @@ public class Herder extends SCPDriver {
 
 	void trackingHeartBeat()
 	{
-	    if (mApp.getConfig().MANUAL_CLOSE)
+	    if (config.MANUAL_CLOSE)
 	    {
 	        return;
 	    }
@@ -1738,7 +1744,7 @@ public class Herder extends SCPDriver {
 	        for (TransactionFrame tx : toBroadcast.sortForApply())
 	        {
 	        	StellarMessage msg = tx.toStellarMessage();
-	            mApp.getOverlayManager().broadcastMessage(msg);
+	            overlayManager.broadcastMessage(msg);
 	        }
 	    }
 
@@ -1754,7 +1760,7 @@ public class Herder extends SCPDriver {
 
 	    LinkedHashMap<String, Object> v = new LinkedHashMap<>();
 	    dumpInfo(v, 20);
-	    String s = mApp.toJsonString(v);
+	    String s = jsonSerde.toJsonString(v);
 	    log.info("Herder Out of sync context: {}", s);
 
 	    mSCPMetrics.mLostSync.mark();
@@ -1778,8 +1784,8 @@ public class Herder extends SCPDriver {
 	    {
 	        HashMap<Hash, SCPQuorumSet> usedQSets = new HashMap<>();
 
-	        JdbcTemplate db = mApp.getDatabase();
-	        TransactionTemplate tt = mApp.getTransactionTemplate();
+	        JdbcTemplate db = database.getJdbcTemplate();
+	        TransactionTemplate tt = database.getTransactionTemplate();
 	        tt.execute((TransactionStatus status) -> {
 		        //cpp soci::transaction txscope(db.getSession());
 	                //TODO auto timer = db.getDeleteTimer("scphistory");

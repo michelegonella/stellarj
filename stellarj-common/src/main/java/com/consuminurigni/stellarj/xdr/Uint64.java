@@ -10,7 +10,7 @@ import java.nio.ByteBuffer;
 //  typedef unsigned hyper uint64;
 
 //  ===========================================================================
-public class Uint64 extends XdrInteger {
+public class Uint64 extends XdrInteger implements Encodable {
 	private static final long serialVersionUID = 1790875541700710224L;
 public static final Uint64 ZERO = null;
 public /*TODO final*/ long uint64;
@@ -143,6 +143,23 @@ public /*TODO final*/ long uint64;
 	public Uint64 minus(Uint64 uint642) {
 		// TODO Auto-generated method stub
 		return null;
+	}
+	public static Uint64 max(Uint64 slotIndex, Uint64 mLastSeenSlotIndex) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+	@Override
+	public byte[] encode() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+	public Uint64 incr() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+	public boolean ne(Uint64 mRecvMacSeq) {
+		// TODO Auto-generated method stub
+		return false;
 	}
 
 }

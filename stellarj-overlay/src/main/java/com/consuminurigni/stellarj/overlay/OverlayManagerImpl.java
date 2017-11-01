@@ -2,6 +2,8 @@ package com.consuminurigni.stellarj.overlay;
 
 import java.util.List;
 import java.util.Set;
+import java.util.SortedSet;
+import java.util.TreeSet;
 
 import com.consuminurigni.stellarj.overlay.xdr.StellarMessage;
 import com.consuminurigni.stellarj.xdr.Hash;
@@ -42,6 +44,11 @@ public class OverlayManagerImpl implements OverlayManager {
 	public void broadcastMessage(StellarMessage msg, boolean force) {
 		// TODO Auto-generated method stub
 
+	}
+
+	@Override
+	public void broadcastMessage(StellarMessage msg) {
+		broadcastMessage(msg, false);
 	}
 
 	@Override
@@ -99,7 +106,7 @@ public class OverlayManagerImpl implements OverlayManager {
 	}
 
 	@Override
-	public Set<Peer> getPeersKnows(Hash h) {
+	public SortedSet<Peer> getPeersKnows(Hash h) {
 		// TODO Auto-generated method stub
 		return null;
 	}

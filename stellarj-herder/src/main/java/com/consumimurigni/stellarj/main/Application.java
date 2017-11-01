@@ -7,7 +7,12 @@ import com.codahale.metrics.Counter;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
+import com.consumimurigni.stellarj.herder.HerderImpl;
 import com.consumimurigni.stellarj.ledger.LedgerManager;
+import com.consumimurigni.stellarj.scp.Herder;
+import com.consuminurigni.stellarj.common.Config;
+import com.consuminurigni.stellarj.common.PersistentState;
+import com.consuminurigni.stellarj.common.VirtualClock;
 import com.consuminurigni.stellarj.overlay.OverlayManager;
 import com.consuminurigni.stellarj.xdr.Hash;
 
@@ -90,6 +95,11 @@ public abstract class Application {
 	}
 
 	public TransactionTemplate getTransactionTemplate() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	public static String getStateHuman(Herder herderImpl, LedgerManager mLedgerManager) {
 		// TODO Auto-generated method stub
 		return null;
 	}

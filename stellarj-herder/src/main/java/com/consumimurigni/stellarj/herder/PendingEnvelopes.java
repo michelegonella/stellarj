@@ -15,20 +15,24 @@ import javax.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.codahale.metrics.Counter;
-import com.consumimurigni.stellarj.herder.Herder.EnvelopeStatus;
-import com.consumimurigni.stellarj.main.Application;
+import com.consumimurigni.stellarj.scp.Herder.EnvelopeStatus;
+import com.consumimurigni.stellarj.scp.Herder;
 import com.consumimurigni.stellarj.scp.QuorumSetUtils;
 import com.consumimurigni.stellarj.scp.SCP;
 import com.consumimurigni.stellarj.scp.Slot;
+import com.consuminurigni.stellarj.common.Config;
 import com.consuminurigni.stellarj.common.Tuple2;
+import com.consuminurigni.stellarj.common.VirtualClock;
+import com.consuminurigni.stellarj.metering.Counter;
+import com.consuminurigni.stellarj.metering.Metrics;
 import com.consuminurigni.stellarj.overlay.ItemFetcher;
+import com.consuminurigni.stellarj.overlay.OverlayManager;
 import com.consuminurigni.stellarj.overlay.Peer;
-import com.consuminurigni.stellarj.overlay.xdr.MessageType;
 import com.consuminurigni.stellarj.overlay.xdr.StellarMessage;
 import com.consuminurigni.stellarj.scp.xdr.SCPEnvelope;
 import com.consuminurigni.stellarj.scp.xdr.SCPQuorumSet;
 import com.consuminurigni.stellarj.xdr.Hash;
+import com.consuminurigni.stellarj.xdr.MessageType;
 import com.consuminurigni.stellarj.xdr.NodeID;
 import com.consuminurigni.stellarj.xdr.Uint256;
 import com.consuminurigni.stellarj.xdr.Uint32;
@@ -52,7 +56,6 @@ public class PendingEnvelopes {
 	};
 
 	private static final Logger log = LogManager.getLogger();
-    private final Application mApp;
     private final Herder mHerder;
 
     
@@ -75,17 +78,20 @@ public class PendingEnvelopes {
     private final HashMap<NodeID, Boolean> mNodesInQuorum;
 
     private final Counter mReadyEnvelopesSize;
+    private final Config config;
+    private final OverlayManager overlayManager;
 
-	public PendingEnvelopes(Application app, Herder /*TODO*/ herder) {
-		this.mApp = app;
+	public PendingEnvelopes(Herder herder, OverlayManager overlayManager, VirtualClock virtualClock, Metrics metrics, Config config) {
+		this.config = config;
+		this.overlayManager = overlayManager;
 		this.mHerder = herder;
 	    this.mQsetCache = new HashMap<>(QSET_CACHE_SIZE);
-	    this.mTxSetFetcher = new ItemFetcher(app, (peer, hash)-> peer.sendGetTxSet(hash));
-	    this.mQuorumSetFetcher = new ItemFetcher(app, (peer, hash)-> peer.sendGetQuorumSet(hash));
+	    this.mTxSetFetcher = new ItemFetcher(herder, overlayManager, virtualClock, metrics, (peer, hash)-> peer.sendGetTxSet(hash));
+	    this.mQuorumSetFetcher = new ItemFetcher(herder, overlayManager, virtualClock, metrics, (peer, hash)-> peer.sendGetQuorumSet(hash));
 	    this.mTxSetCache = new HashMap<>(TXSET_CACHE_SIZE);
 	    this.mNodesInQuorum = new HashMap<>(NODES_QUORUM_CACHE_SIZE);
 	    this.mReadyEnvelopesSize = 
-	          app.newCounter("scp", "memory", "pending-envelopes");
+	    		metrics.newCounter("scp", "memory", "pending-envelopes");
 
 	}
 
@@ -159,8 +165,8 @@ public class PendingEnvelopes {
 		    NodeID nodeID = envelope.getStatement().getNodeID();
 		    if (!isNodeInQuorum(nodeID))
 		    {
-		        log.debug("Herder Dropping envelope from {} (not in quorum)", mApp.getConfig().toShortString(nodeID));
-		        return Herder.EnvelopeStatus.ENVELOPE_STATUS_DISCARDED;
+		        log.debug("Herder Dropping envelope from {} (not in quorum)", config.toShortString(nodeID));
+		        return HerderImpl.EnvelopeStatus.ENVELOPE_STATUS_DISCARDED;
 		    }
 
 		    // did we discard this envelope?
@@ -172,7 +178,7 @@ public class PendingEnvelopes {
 		    {
 		        if (isDiscarded(envelope))
 		        {
-		            return Herder.EnvelopeStatus.ENVELOPE_STATUS_DISCARDED;
+		            return HerderImpl.EnvelopeStatus.ENVELOPE_STATUS_DISCARDED;
 		        }
 
 		        touchFetchCache(envelope);
@@ -194,7 +200,7 @@ public class PendingEnvelopes {
 		            else
 		            {
 		                // we already have this one
-		                return Herder.EnvelopeStatus.ENVELOPE_STATUS_PROCESSED;
+		                return HerderImpl.EnvelopeStatus.ENVELOPE_STATUS_PROCESSED;
 		            }
 		        }
 
@@ -206,15 +212,15 @@ public class PendingEnvelopes {
 		            processedList.add(envelope);
 		            set.remove(envelope);//TODO asert true... ??
 		            envelopeReady(envelope);
-		            return Herder.EnvelopeStatus.ENVELOPE_STATUS_READY;
+		            return HerderImpl.EnvelopeStatus.ENVELOPE_STATUS_READY;
 		        } // else just keep waiting for it to come in
 
-		        return Herder.EnvelopeStatus.ENVELOPE_STATUS_FETCHING;
+		        return HerderImpl.EnvelopeStatus.ENVELOPE_STATUS_FETCHING;
 		    }
 		    catch (RuntimeException e)
 		    {
 		        log.trace("Herder PendingEnvelopes::recvSCPEnvelope got corrupt message: {}", e.getMessage());
-		        return Herder.EnvelopeStatus.ENVELOPE_STATUS_DISCARDED;
+		        return HerderImpl.EnvelopeStatus.ENVELOPE_STATUS_DISCARDED;
 		    }
 		}
 
@@ -275,9 +281,9 @@ public class PendingEnvelopes {
 	public void slotClosed(Uint64 slotIndex) {
 	    // stop processing envelopes & downloads for the slot falling off the
 	    // window
-	    if (slotIndex.gt(Herder.MAX_SLOTS_TO_REMEMBER))
+	    if (slotIndex.gt(HerderImpl.MAX_SLOTS_TO_REMEMBER))
 	    {
-	        slotIndex = slotIndex.minus(Herder.MAX_SLOTS_TO_REMEMBER.toUint64());
+	        slotIndex = slotIndex.minus(HerderImpl.MAX_SLOTS_TO_REMEMBER.toUint64());
 
 	        mEnvelopes.remove(slotIndex);
 
@@ -377,7 +383,7 @@ public class PendingEnvelopes {
 	    StellarMessage msg = new StellarMessage();
 	    msg.setDiscriminant(MessageType.SCP_MESSAGE);
 	    msg.setEnvelope(envelope);
-	    mApp.getOverlayManager().broadcastMessage(msg);
+	    overlayManager.broadcastMessage(msg);
 
 	    mEnvelopes.get(envelope.getStatement().getSlotIndex()).mReadyEnvelopes.add(envelope);
 
@@ -451,7 +457,7 @@ public class PendingEnvelopes {
 	    }
 	}
 
-	public void peerDoesntHave(MessageType type, Uint256 itemID, Peer peer) {
+	public void peerDoesntHave(MessageType type, Hash itemID, Peer peer) {
 	    switch (type)
 	    {
 	    case TX_SET:

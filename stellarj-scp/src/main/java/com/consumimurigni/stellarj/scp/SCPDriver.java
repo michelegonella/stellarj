@@ -6,6 +6,7 @@ import java.util.function.Consumer;
 import com.consumimurigni.stellarj.crypto.CryptoUtils;
 import com.consumimurigni.stellarj.crypto.HashingFunction;
 import com.consumimurigni.stellarj.crypto.SHA256;
+import com.consuminurigni.stellarj.common.VirtualTimerCallback;
 import com.consuminurigni.stellarj.scp.xdr.SCPBallot;
 import com.consuminurigni.stellarj.scp.xdr.SCPEnvelope;
 import com.consuminurigni.stellarj.scp.xdr.SCPQuorumSet;
@@ -177,7 +178,7 @@ public abstract class SCPDriver {
 	    // `setupTimer`: requests to trigger 'cb' after timeout
 	    public abstract void setupTimer(Uint64 slotIndex, Slot.timerIDs timerID,
 	    		Duration timeout,
-	                            Runnable cb);
+	    		VirtualTimerCallback cb);
 
 	    public Uint64 computeHashNode(Uint64 slotIndex, Value prev, boolean isPriority,
 	                               Int32 roundNumber, NodeID nodeID)

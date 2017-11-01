@@ -8,6 +8,8 @@ import java.io.IOException;
 
 import com.consuminurigni.stellarj.scp.xdr.SCPEnvelope;
 import com.consuminurigni.stellarj.scp.xdr.SCPQuorumSet;
+import com.consuminurigni.stellarj.xdr.Encodable;
+import com.consuminurigni.stellarj.xdr.MessageType;
 import com.consuminurigni.stellarj.xdr.Uint256;
 import com.consuminurigni.stellarj.xdr.Uint32;
 import com.consuminurigni.stellarj.xdr.XdrDataInputStream;
@@ -50,7 +52,7 @@ import com.consuminurigni.stellarj.xdr.XdrDataOutputStream;
 //  };
 
 //  ===========================================================================
-public class StellarMessage  {
+public class StellarMessage implements Encodable {
   public StellarMessage () {}
   MessageType type;
   public MessageType getDiscriminant() {
@@ -240,4 +242,8 @@ public class StellarMessage  {
   }
     return decodedStellarMessage;
   }
+public byte[] encode() {
+	// TODO Auto-generated method stub
+	return null;
+}
 }

@@ -34,4 +34,9 @@ public class HmacSha256Mac  {
     stream.read(decodedHmacSha256Mac.mac, 0, macsize);
     return decodedHmacSha256Mac;
   }
+public static HmacSha256Mac of(byte[] mac) {
+	HmacSha256Mac res = new HmacSha256Mac();
+	res.setMac(mac);
+	return res;
+}
 }

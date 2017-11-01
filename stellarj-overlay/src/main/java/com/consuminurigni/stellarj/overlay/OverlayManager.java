@@ -1,7 +1,7 @@
 package com.consuminurigni.stellarj.overlay;
 
 import java.util.List;
-import java.util.TreeSet;
+import java.util.SortedSet;
 
 import com.consuminurigni.stellarj.overlay.xdr.StellarMessage;
 import com.consuminurigni.stellarj.xdr.Hash;
@@ -56,6 +56,7 @@ public interface OverlayManager {
     // Send a given message to all peers, via the FloodGate. This is called by
     // Herder.
     public void broadcastMessage(StellarMessage msg, boolean force);
+	public void broadcastMessage(StellarMessage msg);
 
     // Make a note in the FloodGate that a given peer has provided us with a
     // given broadcast message, so that it is inhibited from being resent to
@@ -97,7 +98,7 @@ public interface OverlayManager {
     public void connectTo(PeerRecord pr);
 
     // returns the list of peers that sent us the item with hash `h`
-    public TreeSet<Peer> getPeersKnows(Hash h);
+    public SortedSet<Peer> getPeersKnows(Hash h);
 
     // Return the persistent p2p authentication-key cache.
     public PeerAuth getPeerAuth();
@@ -111,4 +112,5 @@ public interface OverlayManager {
     public void shutdown();
 
     public boolean isShuttingDown();
+
 }

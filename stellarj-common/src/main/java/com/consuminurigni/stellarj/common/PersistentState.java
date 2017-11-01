@@ -1,4 +1,4 @@
-package com.consumimurigni.stellarj.main;
+package com.consuminurigni.stellarj.common;
 
 public class PersistentState {
 	public     enum Entry

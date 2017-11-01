@@ -8,6 +8,7 @@ import com.consumimurigni.stellarj.ledger.xdr.TransactionResult;
 import com.consumimurigni.stellarj.ledger.xdr.TransactionResultCode;
 import com.consumimurigni.stellarj.ledgerimpl.xdr.TransactionEnvelope;
 import com.consumimurigni.stellarj.main.Application;
+import com.consuminurigni.stellarj.metering.Metrics;
 import com.consuminurigni.stellarj.overlay.xdr.StellarMessage;
 import com.consuminurigni.stellarj.scp.xdr.SCPEnvelope;
 import com.consuminurigni.stellarj.xdr.Hash;
@@ -39,7 +40,7 @@ public class TransactionFrame {
 		return null;
 	}
 
-	public boolean checkValid(Application mApp, SequenceNumber highSeq) {
+	public boolean checkValid(LedgerManager ledgerManager, Metrics metrics, SequenceNumber highSeq) {
 		// TODO Auto-generated method stub
 		return false;
 	}

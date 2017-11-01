@@ -21,6 +21,10 @@ public class Hash implements XdrValue {
 	public static Hash createEmpty() {
 		return new Hash(ZEROES);
 	}
+	public static Hash of(byte[] b) {
+		return new Hash(b);
+	}
+
 	public Hash(byte[] b) {
 		Hash = b;
 		Assert.assertTrue(b.length == HASH_SIZE);
