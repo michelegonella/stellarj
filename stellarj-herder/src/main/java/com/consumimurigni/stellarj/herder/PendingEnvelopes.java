@@ -16,6 +16,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.consumimurigni.stellarj.scp.Herder.EnvelopeStatus;
+import com.consumimurigni.stellarj.role.IPeer;
 import com.consumimurigni.stellarj.scp.Herder;
 import com.consumimurigni.stellarj.scp.QuorumSetUtils;
 import com.consumimurigni.stellarj.scp.SCP;
@@ -457,14 +458,14 @@ public class PendingEnvelopes {
 	    }
 	}
 
-	public void peerDoesntHave(MessageType type, Hash itemID, Peer peer) {
+	public void peerDoesntHave(MessageType type, Uint256 itemID, IPeer peer) {
 	    switch (type)
 	    {
 	    case TX_SET:
-	        mTxSetFetcher.doesntHave(itemID, peer);
+	        mTxSetFetcher.doesntHave(itemID.toHash(), peer);
 	        break;
 	    case SCP_QUORUMSET:
-	        mQuorumSetFetcher.doesntHave(itemID, peer);
+	        mQuorumSetFetcher.doesntHave(itemID.toHash(), peer);
 	        break;
 	    default:
 	        log.info("Herder Unknown Type in peerDoesntHave: {}", type);

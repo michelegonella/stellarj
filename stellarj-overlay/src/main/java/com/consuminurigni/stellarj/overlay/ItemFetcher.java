@@ -14,6 +14,7 @@ import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.consumimurigni.stellarj.role.IPeer;
 import com.consumimurigni.stellarj.scp.Herder;
 import com.consuminurigni.stellarj.common.Tuple2;
 import com.consuminurigni.stellarj.common.VirtualClock;
@@ -133,7 +134,7 @@ public class ItemFetcher {
 	    }
 	}
 
-	public void doesntHave(Hash itemHash, Peer peer) {
+	public void doesntHave(Hash itemHash, IPeer peer) {
 	    Tracker tracker = mTrackers.get(itemHash);
 	    if (tracker != null)
 	    {

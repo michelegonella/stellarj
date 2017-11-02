@@ -6,6 +6,7 @@ package com.consuminurigni.stellarj.overlay.xdr;
 
 import java.io.IOException;
 
+import com.consuminurigni.stellarj.xdr.Hash;
 import com.consuminurigni.stellarj.xdr.MessageType;
 import com.consuminurigni.stellarj.xdr.Uint256;
 import com.consuminurigni.stellarj.xdr.XdrDataInputStream;

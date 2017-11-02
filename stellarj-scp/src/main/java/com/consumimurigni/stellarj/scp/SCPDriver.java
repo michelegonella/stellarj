@@ -3,6 +3,8 @@ package com.consumimurigni.stellarj.scp;
 import java.time.Duration;
 import java.util.function.Consumer;
 
+import javax.annotation.Nullable;
+
 import com.consumimurigni.stellarj.crypto.CryptoUtils;
 import com.consumimurigni.stellarj.crypto.HashingFunction;
 import com.consumimurigni.stellarj.crypto.SHA256;
@@ -41,7 +43,7 @@ public abstract class SCPDriver {
 
 	    // Delegates the retrieval of the quorum set designated by `qSetHash` to
 	    // the user of SCP.
-	    public abstract SCPQuorumSet getQSet(Hash qSetHash);
+	    public abstract @Nullable SCPQuorumSet getQSet(Hash qSetHash);
 
 	    // Users of the SCP library should inherit from SCPDriver and implement the
 	    // abstract methods which are called by the SCP implementation to

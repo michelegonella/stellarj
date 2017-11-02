@@ -13,20 +13,21 @@ import org.apache.logging.log4j.Logger;
 
 import com.consumimurigni.stellarj.crypto.SHA256;
 import com.consumimurigni.stellarj.ledger.LedgerManager;
-import com.consumimurigni.stellarj.ledger.xdr.AccountID;
 import com.consumimurigni.stellarj.ledger.xdr.LedgerHeaderHistoryEntry;
-import com.consumimurigni.stellarj.ledger.xdr.SequenceNumber;
 import com.consumimurigni.stellarj.ledger.xdr.TransactionSet;
-import com.consumimurigni.stellarj.ledgerimpl.xdr.TransactionEnvelope;
+import com.consumimurigni.stellarj.role.ITxSetFrame;
 import com.consumimurigni.stellarj.transactions.TransactionFrame;
 import com.consuminurigni.stellarj.common.Database;
 import com.consuminurigni.stellarj.metering.Metrics;
+import com.consuminurigni.stellarj.xdr.AccountID;
 import com.consuminurigni.stellarj.xdr.Hash;
 import com.consuminurigni.stellarj.xdr.Int64;
+import com.consuminurigni.stellarj.xdr.SequenceNumber;
+import com.consuminurigni.stellarj.xdr.TransactionEnvelope;
 import com.consuminurigni.stellarj.xdr.Xdr;
 
 //TODO mv to ledger ?
-public class TxSetFrame {
+public class TxSetFrame implements ITxSetFrame {
 	private static final Logger log = LogManager.getLogger();
     private boolean mHashIsValid = false;
     private Hash mHash = null;
@@ -35,7 +36,9 @@ public class TxSetFrame {
 
     private final List<TransactionFrame> mTransactions;
 	//copy constructor
-	public TxSetFrame(TxSetFrame other) {
+	public TxSetFrame(ITxSetFrame tocopy) 
+	{
+		TxSetFrame other = (TxSetFrame)tocopy;//TODO
 		this.mHashIsValid = other.mHashIsValid;
 		this.mHash = other.mHash;
 		this.mPreviousLedgerHash = other.mPreviousLedgerHash;

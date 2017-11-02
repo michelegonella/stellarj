@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Optional;
 
 import javax.annotation.Nullable;
 
@@ -13,17 +14,23 @@ import org.apache.logging.log4j.Logger;
 
 import com.consumimurigni.stellarj.crypto.CryptoUtils;
 import com.consumimurigni.stellarj.crypto.SHA256;
+import com.consumimurigni.stellarj.role.IPeer;
+import com.consumimurigni.stellarj.role.ITxSetFrame;
 import com.consumimurigni.stellarj.scp.Herder;
-import com.consuminurigni.stellarj.common.AbstractPeer;
+import com.consumimurigni.stellarj.scp.Herder.TransactionSubmitStatus;
+import com.consumimurigni.stellarj.transactions.TransactionFrame;
 import com.consuminurigni.stellarj.common.BufUtils;
 import com.consuminurigni.stellarj.common.Config;
 import com.consuminurigni.stellarj.common.Database;
+import com.consuminurigni.stellarj.common.MathUtils;
+import com.consuminurigni.stellarj.common.NetUtils;
 import com.consuminurigni.stellarj.common.VirtualClock;
 import com.consuminurigni.stellarj.common.VirtualTimer;
 import com.consuminurigni.stellarj.common.VirtualTimerErrorCode;
 import com.consuminurigni.stellarj.metering.Meter;
 import com.consuminurigni.stellarj.metering.Metrics;
 import com.consuminurigni.stellarj.metering.Timer;
+import com.consuminurigni.stellarj.metering.TimerContext;
 import com.consuminurigni.stellarj.overlay.LoadManager.PeerContext;
 import com.consuminurigni.stellarj.overlay.xdr.AuthCert;
 import com.consuminurigni.stellarj.overlay.xdr.AuthenticatedMessage;
@@ -31,9 +38,12 @@ import com.consuminurigni.stellarj.overlay.xdr.AuthenticatedMessage.Authenticate
 import com.consuminurigni.stellarj.overlay.xdr.DontHave;
 import com.consuminurigni.stellarj.overlay.xdr.ErrorCode;
 import com.consuminurigni.stellarj.overlay.xdr.Hello;
+import com.consuminurigni.stellarj.overlay.xdr.IPAddrType;
 import com.consuminurigni.stellarj.overlay.xdr.PeerAddress;
 import com.consuminurigni.stellarj.overlay.xdr.StellarMessage;
+import com.consuminurigni.stellarj.scp.xdr.SCPEnvelope;
 import com.consuminurigni.stellarj.scp.xdr.SCPQuorumSet;
+import com.consuminurigni.stellarj.scp.xdr.SCPStatementType;
 import com.consuminurigni.stellarj.xdr.Hash;
 import com.consuminurigni.stellarj.xdr.HmacSha256Key;
 import com.consuminurigni.stellarj.xdr.MessageType;
@@ -47,7 +57,7 @@ import com.consuminurigni.stellarj.xdr.Uint64;
 //LATER: need to add some way of docking peers that are misbehaving by sending
 //you bad data
 
-public abstract class Peer extends AbstractPeer {
+public abstract class Peer extends IPeer {
 	private static final Logger log = LogManager.getLogger();
 
 	enum PeerState
@@ -65,20 +75,20 @@ public abstract class Peer extends AbstractPeer {
         WE_CALLED_REMOTE
     };
     private final PeerRole mRole;
-    private final PeerState mState;
-    private final NodeID mPeerID;
+    private PeerState mState;
+    private /*TODO final*/ NodeID mPeerID;
     private final Uint256 mSendNonce;
-    private final Uint256 mRecvNonce;
+    private /*TODO final*/ Uint256 mRecvNonce;
 
-    private final HmacSha256Key mSendMacKey;
-    private final HmacSha256Key mRecvMacKey;
+    private /*TODO final*/ HmacSha256Key mSendMacKey;
+    private /*TODO final*/ HmacSha256Key mRecvMacKey;
     private Uint64 mSendMacSeq = Uint64.ZERO;
     private Uint64 mRecvMacSeq = Uint64.ZERO;
 
-    private final String mRemoteVersion;
-    private final Uint32 mRemoteOverlayMinVersion;
-    private final Uint32 mRemoteOverlayVersion;
-    private final int mRemoteListeningPort;
+    private /*TODO final*/ String mRemoteVersion;
+    private /*TODO final*/ Uint32 mRemoteOverlayMinVersion;
+    private Uint32 mRemoteOverlayVersion;
+    private int mRemoteListeningPort;
 
     private final VirtualTimer mIdleTimer;
     private Instant mLastRead;
@@ -451,7 +461,11 @@ public abstract class Peer extends AbstractPeer {
         }
     }
 
-    void
+    private void connected() {
+		// TODO Auto-generated method stub
+		
+	}
+	void
     sendDontHave(MessageType type, Uint256 itemID)
     {
         StellarMessage msg = new StellarMessage();
@@ -472,23 +486,23 @@ public abstract class Peer extends AbstractPeer {
 
         sendMessage(msg);
     }
-    void
-    sendGetTxSet(Uint256 setID)
+    public void
+    sendGetTxSet(Hash/*TODO Uint256*/ setID)
     {
         StellarMessage newMsg = new StellarMessage();
         newMsg.setDiscriminant(MessageType.GET_TX_SET);
-        newMsg.setTxSetHash(setID);
+        newMsg.setTxSetHash(Uint256.of(setID.encode()));//TODO
 
         sendMessage(newMsg);
     }
-    void
-    sendGetQuorumSet(Uint256 setID)
+    public void
+    sendGetQuorumSet(Hash /*Uint256*/ setID)
     {
             log.trace("Overlay Get quorum set: {}", () -> setID.hexAbbrev());
 
         StellarMessage newMsg = new StellarMessage();
         newMsg.setDiscriminant(MessageType.GET_SCP_QUORUMSET);
-        newMsg.setQSetHash(setID);
+        newMsg.setQSetHash(Uint256.of(setID.encode()));//TODO
 
         sendMessage(newMsg);
     }
@@ -536,8 +550,7 @@ public abstract class Peer extends AbstractPeer {
         newMsg.setPeers(peerAddrList.toArray(new PeerAddress[peerAddrList.size()]));
         sendMessage(newMsg);
     }
-
-    static String
+	static String
     msgSummary(StellarMessage msg)
     {
         switch (msg.getDiscriminant())
@@ -592,7 +605,7 @@ public abstract class Peer extends AbstractPeer {
     // put in a reused/non-owned buffer without having to buffer/queue
     // messages somewhere else. The async write request will point _into_
     // this owned buffer. This is really the best we can do.
-    void
+    public void
     sendMessage(StellarMessage msg)
     {
             log.trace("Overlay ({}) send: {} to : {}", 
@@ -694,7 +707,11 @@ public abstract class Peer extends AbstractPeer {
         }
     }
 
-    boolean
+    private void drop() {
+		// TODO Auto-generated method stub
+		
+	}
+	boolean
     isConnected()
     {
         return mState != PeerState.CONNECTING && mState != PeerState.CLOSING;
@@ -745,8 +762,6 @@ public abstract class Peer extends AbstractPeer {
         }
         recvMessage(msgv0.getMessage());
     }
-
-    
     
     
     void
@@ -760,45 +775,46 @@ public abstract class Peer extends AbstractPeer {
     recvGetTxSet(StellarMessage msg)
     {
 //        auto self = shared_from_this();
-        if (TxSetFrame txSet = herder.getTxSet(msg.txSetHash()))
+    	ITxSetFrame txSet = herder.getTxSet(msg.getTxSetHash().toHash());
+        if (txSet != null)
         {
-            StellarMessage newMsg;
-            newMsg.type(TX_SET);
-            txSet->toXDR(newMsg.txSet());
+            StellarMessage newMsg = new StellarMessage();
+            newMsg.setDiscriminant(MessageType.TX_SET);
+            newMsg.setTxSet(txSet.toXDR());
 
-            self->sendMessage(newMsg);
+            sendMessage(newMsg);
         }
         else
         {
-            sendDontHave(TX_SET, msg.txSetHash());
+            sendDontHave(MessageType.TX_SET, msg.getTxSetHash());
         }
     }
 
     void
     recvTxSet(StellarMessage msg)
     {
-        TxSetFrame frame(networkID, msg.txSet());
+        ITxSetFrame frame = ITxSetFrame.build(networkID, msg.getTxSet());
         herder.recvTxSet(frame.getContentsHash(), frame);
     }
 
     void
     recvTransaction(StellarMessage msg)
     {
-        TransactionFramePtr transaction = TransactionFrame::makeTransactionFromWire(
-            networkID, msg.transaction());
-        if (transaction)
+        TransactionFrame transaction = TransactionFrame.makeTransactionFromWire(
+            networkID, msg.getTransaction());
+        if (transaction != null)
         {
             // add it to our current set
             // and make sure it is valid
-            auto recvRes = herder.recvTransaction(transaction);
+            TransactionSubmitStatus recvRes = herder.recvTransaction(transaction);
 
-            if (recvRes == Herder::TX_STATUS_PENDING ||
-                recvRes == Herder::TX_STATUS_DUPLICATE)
+            if (recvRes == Herder.TransactionSubmitStatus.TX_STATUS_PENDING ||
+                recvRes == Herder.TransactionSubmitStatus.TX_STATUS_DUPLICATE)
             {
                 // record that this peer sent us this transaction
-                overlayManager.recvFloodedMsg(msg, shared_from_this());
+                overlayManager.recvFloodedMsg(msg, this);
 
-                if (recvRes == Herder::TX_STATUS_PENDING)
+                if (recvRes == Herder.TransactionSubmitStatus.TX_STATUS_PENDING)
                 {
                     // if it's a new transaction, broadcast it
                     overlayManager.broadcastMessage(msg);
@@ -810,64 +826,64 @@ public abstract class Peer extends AbstractPeer {
     void
     recvGetSCPQuorumSet(StellarMessage msg)
     {
-        SCPQuorumSetPtr qset = herder.getQSet(msg.qSetHash());
+        SCPQuorumSet qset = herder.getQSet(msg.getQSetHash().toHash());
 
-        if (qset)
+        if (qset != null)
         {
             sendSCPQuorumSet(qset);
         }
         else
         {
-            if (Logging::logTrace("Overlay"))
-                log.trace("Overlay No quorum set: "
-                                       << hexAbbrev(msg.qSetHash());
-            sendDontHave(SCP_QUORUMSET, msg.qSetHash());
+            log.trace("Overlay No quorum set: {}", () -> msg.getQSetHash().hexAbbrev());
+            sendDontHave(MessageType.SCP_QUORUMSET, msg.getQSetHash());
             // do we want to ask other people for it?
         }
     }
+
     void
     recvSCPQuorumSet(StellarMessage msg)
     {
-        Hash hash = sha256(xdr::xdr_to_opaque(msg.qSet()));
-        herder.recvSCPQuorumSet(hash, msg.qSet());
+        Hash hash = Hash.of(CryptoUtils.sha256(msg.getQSet().encode()));
+        herder.recvSCPQuorumSet(hash, msg.getQSet());
     }
 
     void
     recvSCPMessage(StellarMessage msg)
     {
-        SCPEnvelope envelope = msg.envelope();
-        if (Logging::logTrace("Overlay"))
-            CLOG(TRACE, "Overlay")
-                << "recvSCPMessage node: "
-                << config.toShortString(msg.envelope().statement.nodeID);
+        SCPEnvelope envelope = msg.getEnvelope();
+        log.trace("Overlay recvSCPMessage node: {}", () -> config.toShortString(msg.getEnvelope().getStatement().getNodeID()));
 
-        overlayManager.recvFloodedMsg(msg, shared_from_this());
+        overlayManager.recvFloodedMsg(msg, this);
 
-        auto type = msg.envelope().statement.pledges.type();
-        auto t = (type == SCP_ST_PREPARE
-                      ? mRecvSCPPrepareTimer.TimeScope()
-                      : (type == SCP_ST_CONFIRM
-                             ? mRecvSCPConfirmTimer.TimeScope()
-                             : (type == SCP_ST_EXTERNALIZE
-                                    ? mRecvSCPExternalizeTimer.TimeScope()
-                                    : (mRecvSCPNominateTimer.TimeScope()))));
-
-        herder.recvSCPEnvelope(envelope);
+        SCPStatementType type = msg.getEnvelope().getStatement().getPledges().getDiscriminant();
+        //???? unused
+        TimerContext t = (type == SCPStatementType.SCP_ST_PREPARE
+                      ? mRecvSCPPrepareTimer.time()
+                      : (type == SCPStatementType.SCP_ST_CONFIRM
+                             ? mRecvSCPConfirmTimer.time()
+                             : (type == SCPStatementType.SCP_ST_EXTERNALIZE
+                                    ? mRecvSCPExternalizeTimer.time()
+                                    : (mRecvSCPNominateTimer.time()))));
+        try {
+            herder.recvSCPEnvelope(envelope);
+        } finally {
+        	t.stop();
+        }
     }
 
     void
     recvGetSCPState(StellarMessage msg)
     {
-        uint32 seq = msg.getSCPLedgerSeq();
-        log.trace("Overlay get SCP State " << seq;
-        herder.sendSCPStateToPeer(seq, shared_from_this());
+        Uint32 seq = msg.getGetSCPLedgerSeq();
+        log.trace("Overlay get SCP State {}", seq);
+        herder.sendSCPStateToPeer(seq, this);
     }
 
     void
     recvError(StellarMessage msg)
     {
         String codeStr = "UNKNOWN";
-        switch (msg.error().code)
+        switch (msg.getError().getCode())
         {
         case ERR_MISC:
             codeStr = "ERR_MISC";
@@ -887,38 +903,418 @@ public abstract class Peer extends AbstractPeer {
         default:
             break;
         }
-        log.warn("Overlay Received error (" << codeStr
-                                 << "): " << msg.error().msg;
+        log.warn("Overlay Received error ({}): {}", codeStr,  msg.getError().getMsg());
         mDropInRecvErrorMeter.mark();
         drop();
     }
 
-    private void idleTimerExpired(Exception error) {
-		// TODO Auto-generated method stub
-		
-	}
-	// returns false if we should drop this peer
-    void noteHandshakeSuccessInPeerRecord() {}
+    void
+    recvMessage(StellarMessage stellarMsg)
+    {
+        if (shouldAbort())
+        {
+            return;
+        }
+
+        log.trace("Overlay ({}) recv: {} from:{}", () -> config.toShortString(config.NODE_SEED.getPublicKey()),
+                () -> msgSummary(stellarMsg),
+                () -> config.toShortString(mPeerID));
+
+        MessageType messageType = stellarMsg.getDiscriminant();
+        if (!isAuthenticated() && (messageType != MessageType.HELLO) &&
+            (messageType != MessageType.AUTH) && (messageType != MessageType.ERROR_MSG))
+        {
+            log.warn("Overlay recv: {} before completed handshake", stellarMsg.getDiscriminant().name());
+            mDropInRecvMessageUnauthMeter.mark();
+            drop();
+            return;
+        }
+
+        assert(isAuthenticated() || messageType == MessageType.HELLO ||
+        		messageType == MessageType.AUTH || messageType == MessageType.ERROR_MSG);
+
+        switch (messageType)
+        {
+        case ERROR_MSG:
+        {
+            TimerContext t = mRecvErrorTimer.time();
+            try {
+                recvError(stellarMsg);
+            } finally {
+            	t.stop();
+            }
+        }
+        break;
+
+        case HELLO:
+        {
+            TimerContext t = mRecvHelloTimer.time();
+            try {
+                this.recvHello(stellarMsg.getHello());
+            } finally {
+            	t.stop();
+            }
+        }
+        break;
+
+        case AUTH:
+        {
+            TimerContext t = mRecvAuthTimer.time();
+            try {
+                this.recvAuth(stellarMsg);
+            } finally {
+            	t.stop();
+            }
+        }
+        break;
+
+        case DONT_HAVE:
+        {
+            TimerContext t = mRecvDontHaveTimer.time();
+            try {
+                recvDontHave(stellarMsg);
+            } finally {
+            	t.stop();
+            }
+        }
+        break;
+
+        case GET_PEERS:
+        {
+            TimerContext t = mRecvGetPeersTimer.time();
+            try {
+                recvGetPeers(stellarMsg);
+            } finally {
+            	t.stop();
+            }
+        }
+        break;
+
+        case PEERS:
+        {
+            TimerContext t = mRecvPeersTimer.time();
+            try {
+                recvPeers(stellarMsg);
+            } finally {
+            	t.stop();
+            }
+        }
+        break;
+
+        case GET_TX_SET:
+        {
+            TimerContext t = mRecvGetTxSetTimer.time();
+            try {
+                recvGetTxSet(stellarMsg);
+            } finally {
+            	t.stop();
+            }
+        }
+        break;
+
+        case TX_SET:
+        {
+            TimerContext t = mRecvTxSetTimer.time();
+            try {
+                recvTxSet(stellarMsg);
+            } finally {
+            	t.stop();
+            }
+        }
+        break;
+
+        case TRANSACTION:
+        {
+            TimerContext t = mRecvTransactionTimer.time();
+            try {
+                recvTransaction(stellarMsg);
+            } finally {
+            	t.stop();
+            }
+        }
+        break;
+
+        case GET_SCP_QUORUMSET:
+        {
+            TimerContext t = mRecvGetSCPQuorumSetTimer.time();
+            try {
+                recvGetSCPQuorumSet(stellarMsg);
+            } finally {
+            	t.stop();
+            }
+        }
+        break;
+
+        case SCP_QUORUMSET:
+        {
+            TimerContext t = mRecvSCPQuorumSetTimer.time();
+            try {
+                recvSCPQuorumSet(stellarMsg);
+            } finally {
+            	t.stop();
+            }
+        }
+        break;
+
+        case SCP_MESSAGE:
+        {
+            TimerContext t = mRecvSCPMessageTimer.time();
+            try {
+                recvSCPMessage(stellarMsg);
+            } finally {
+            	t.stop();
+            }
+        }
+        break;
+
+        case GET_SCP_STATE:
+        {
+            TimerContext t = mRecvGetSCPStateTimer.time();
+            try {
+                recvGetSCPState(stellarMsg);
+            } finally {
+            	t.stop();
+            }
+        }
+        break;
+        }
+    }
+
+    void
+    noteHandshakeSuccessInPeerRecord()
+    {
+        if (getIP().isEmpty() || getRemoteListeningPort() == 0)
+        {
+            log.error("Overlay unable to handshake with {}:{}", getIP(), getRemoteListeningPort());
+            mDropInRecvAuthInvalidPeerMeter.mark();
+            drop();
+            return;
+        }
+
+        @Nullable PeerRecord pr = PeerRecord.loadPeerRecord(database, getIP(),
+                                             getRemoteListeningPort());
+        if (pr != null)
+        {
+            pr.resetBackOff(virtualClock);
+        }
+        else
+        {
+            pr = new PeerRecord(getIP(), mRemoteListeningPort,
+                                           virtualClock.now(), 0);
+        }
+        log.info("Overlay successful handshake with {}@{}", config.toShortString(mPeerID), pr.toString());
+        pr.storePeerRecord(database);
+    }
+
+    void
+    recvHello(Hello elo)
+    {
+//        using xdr::operator==;
+
+        if (mState.ordinal() >= PeerState.GOT_HELLO.ordinal())
+        {
+            log.error("Overlay received unexpected HELLO");
+            mDropInRecvHelloUnexpectedMeter.mark();
+            drop();
+            return;
+        }
+
+        PeerAuth peerAuth = overlayManager.getPeerAuth();
+        if (!peerAuth.verifyRemoteAuthCert(elo.getPeerID(), elo.getCert()))
+        {
+            log.error("Overlay failed to verify remote peer auth cert");
+            mDropInRecvHelloCertMeter.mark();
+            drop();
+            return;
+        }
+
+        if (banManager.isBanned(elo.getPeerID()))
+        {
+            log.error("Overlay Node is banned");
+            mDropInRecvHelloBanMeter.mark();
+            drop();
+            return;
+        }
+
+        mRemoteListeningPort = elo.getListeningPort();
+        mRemoteOverlayMinVersion = elo.getOverlayMinVersion();
+        mRemoteOverlayVersion = elo.getOverlayVersion();
+        mRemoteVersion = elo.getVersionStr();
+        mPeerID = elo.getPeerID();
+        mRecvNonce = elo.getNonce();
+        mSendMacSeq = Uint64.ZERO;
+        mRecvMacSeq = Uint64.ZERO;
+        mSendMacKey = peerAuth.getSendingMacKey(elo.getCert().getPubkey(), mSendNonce,
+                                                mRecvNonce, mRole);
+        mRecvMacKey = peerAuth.getReceivingMacKey(elo.getCert().getPubkey(), mSendNonce,
+                                                  mRecvNonce, mRole);
+
+        mState = PeerState.GOT_HELLO;
+        log.debug("Overlay recvHello from {}", toString());
+
+        if (mRole == PeerRole.REMOTE_CALLED_US)
+        {
+            // Send a HELLO back, even if it's going to be followed
+            // immediately by ERROR, because ERROR is an authenticated
+            // message type and the caller won't decode it right if
+            // still waiting for an unauthenticated HELLO.
+            sendHello();
+        }
+
+        if (mRemoteOverlayMinVersion.gt(mRemoteOverlayVersion) ||
+            mRemoteOverlayVersion.lt(config.OVERLAY_PROTOCOL_MIN_VERSION) ||
+            mRemoteOverlayMinVersion.gt(config.OVERLAY_PROTOCOL_VERSION))
+        {
+            log.error("Overlay connection from peer with incompatible overlay protocol version");
+            log.debug("OverlayProtocol = [{}] expected: [{},{}]",
+            		mRemoteOverlayMinVersion,
+                config.OVERLAY_PROTOCOL_VERSION,
+                config.OVERLAY_PROTOCOL_VERSION);
+            mDropInRecvHelloVersionMeter.mark();
+            drop(ErrorCode.ERR_CONF, "wrong protocol version");
+            return;
+        }
+
+        if (elo.getPeerID().eq(config.NODE_SEED.getPublicKey()))
+        {
+            log.warn("Overlay connecting to self");
+            mDropInRecvHelloSelfMeter.mark();
+            drop(ErrorCode.ERR_CONF, "connecting to self");
+            return;
+        }
+
+        if (! elo.getNetworkID().equals(networkID))
+        {
+            log.warn("Overlay connection from peer with different NetworkID");
+            log.debug("Overlay NetworkID = {} expected:{}", elo.getNetworkID().hexAbbrev(), networkID.hexAbbrev());
+            mDropInRecvHelloNetMeter.mark();
+            drop(ErrorCode.ERR_CONF, "wrong network passphrase");
+            return;
+        }
+
+        for (Peer p : overlayManager.getPeers())
+        {
+        	//TODO
+//            if (&(p->mPeerID) == &mPeerID)
+//            {
+//                continue;
+//            }
+            if (p.getPeerID().eq(mPeerID))
+            {
+                log.warn("Overlay connection from already-connected peerID {}", config.toShortString(mPeerID));
+                mDropInRecvHelloPeerIDMeter.mark();
+                drop(ErrorCode.ERR_CONF, "connecting already-connected peer");
+                return;
+            }
+        }
+
+        if (elo.getListeningPort() <= 0 || elo.getListeningPort() > 65535)
+        {
+            log.warn("Overlay bad port in recvHello");
+            mDropInRecvHelloPortMeter.mark();
+            drop(ErrorCode.ERR_CONF, "bad port number");
+            return;
+        }
+
+        if (mRole == PeerRole.WE_CALLED_REMOTE)
+        {
+            sendAuth();
+        }
+    }
+
+    void
+    recvAuth(StellarMessage msg)
+    {
+        if (mState != PeerState.GOT_HELLO)
+        {
+            log.info("Overlay Unexpected AUTH message before HELLO");
+            mDropInRecvAuthUnexpectedMeter.mark();
+            drop(ErrorCode.ERR_MISC, "out-of-order AUTH message");
+            return;
+        }
+
+        if (isAuthenticated())
+        {
+            log.info("Overlay Unexpected AUTH message");
+            mDropInRecvAuthUnexpectedMeter.mark();
+            drop(ErrorCode.ERR_MISC, "out-of-order AUTH message");
+            return;
+        }
+
+        mState = PeerState.GOT_AUTH;
+
+        if (!overlayManager.isPeerAccepted(this))
+        {
+            log.warn("Overlay New peer rejected, all slots taken");
+            mDropInRecvAuthRejectMeter.mark();
+            drop(ErrorCode.ERR_LOAD, "peer rejected");
+            return;
+        }
+
+        noteHandshakeSuccessInPeerRecord();
+
+        if (mRole == PeerRole.REMOTE_CALLED_US)
+        {
+            sendAuth();
+            sendPeers();
+        }
+
+        // send SCP State
+        herder.sendSCPStateToPeer(Uint32.ZERO, this);
+    }
 
 
+void
+recvGetPeers(StellarMessage msg)
+{
+    sendPeers();
+}
+void
+recvPeers(StellarMessage msg)
+{
+    final int NEW_PEER_WINDOW_SECONDS = 10;
 
-    
-    public void sendGetTxSet(Hash hash) {
-		// TODO Auto-generated method stub
-	}
+    for (PeerAddress peer : msg.getPeers())
+    {
+        if (peer.getPort().eq(0) || peer.getPort().gt(65535))
+        {
+            log.warn("Overlay ignoring received peer with bad port {}", peer.getPort());
+            continue;
+        }
+        if (peer.getIp().getDiscriminant() == IPAddrType.IPv6)
+        {
+            log.warn("Overlay ignoring received IPv6 address (not yet supported)");
+            continue;
+        }
+        // randomize when we'll try to connect to this peer next if we don't
+        // know it
+        Instant defaultNextAttempt =
+            virtualClock.now().plus(Duration.ofSeconds(MathUtils.randInt(NEW_PEER_WINDOW_SECONDS)));
 
-	public void sendGetQuorumSet(Hash hash) {
-		// TODO Auto-generated method stub
-	}
+        String ip = NetUtils.ipv4ToString(peer.getIp().getIpv4());
+        // don't use peer.numFailures here as we may have better luck
+        // (and we don't want to poison our failure count)
+        PeerRecord pr = new PeerRecord(ip, peer.getPort().intValue(), defaultNextAttempt, 0);
 
-	@Override
-	public String toString() {
-	    return getIP() + ":" + mRemoteListeningPort;
-
-	}
-
-	public void reset() {
-		// TODO Auto-generated method stub
-		
-	}
+        if (pr.isPrivateAddress())
+        {
+            log.warn("Overlay ignoring received private address {}", pr.toString());
+        }
+        else if (pr.isSelfAddressAndPort(getIP(), config.PEER_PORT))
+        {
+            log.warn("Overlay ignoring received self-address {}", pr.toString());
+        }
+        else if (pr.isLocalhost() &&
+                 !config.ALLOW_LOCALHOST_FOR_TESTING)
+        {
+            log.warn("Overlay ignoring received localhost");
+        }
+        else
+        {
+            pr.insertIfNew(database);
+        }
+    }
+}
+    //"" for null ?? 
+    protected abstract String getIP();
 }

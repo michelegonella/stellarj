@@ -105,7 +105,7 @@ public class CryptoTest {
 		    byte[] s = "The quick brown fox jumps over the lazy dog".getBytes(StandardCharsets.US_ASCII);
 		    byte[] h = Hex.decode(
 		        "f7bc83f430538424b13298e6aa6fb143ef4d59a14946175997479dbc2d1a3cd8");
-		    byte[] v = CryptoUtils.hmacSHA256(k, s);
+		    byte[] v = CryptoUtils.hmacSHA256(k, s).getMac();
 		    assertArrayEquals(h, v);
 		    assertTrue(CryptoUtils.hmacSHA256Verify(k, s, h));
 		}

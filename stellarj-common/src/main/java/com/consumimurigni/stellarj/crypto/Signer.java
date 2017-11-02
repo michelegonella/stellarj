@@ -2,9 +2,9 @@ package com.consumimurigni.stellarj.crypto;
 
 import static com.consuminurigni.stellarj.common.Assert.assertNotNull;
 
-import com.consuminurigni.stellarj.common.AbstractTransaction;
 import com.consuminurigni.stellarj.xdr.SignerKey;
 import com.consuminurigni.stellarj.xdr.SignerKeyType;
+import com.consuminurigni.stellarj.xdr.Transaction;
 import com.consuminurigni.stellarj.xdr.Uint256;
 
 /**
@@ -45,7 +45,7 @@ public class Signer {
      * @param tx
      * @return org.stellar.sdk.xdr.SignerKey
      */
-    public static SignerKey preAuthTx(AbstractTransaction tx) {
+    public static SignerKey preAuthTx(Transaction tx) {
     	assertNotNull(tx, "tx cannot be null");
         SignerKey signerKey = new SignerKey();
         throw new UnsupportedOperationException("TODO");//TODO

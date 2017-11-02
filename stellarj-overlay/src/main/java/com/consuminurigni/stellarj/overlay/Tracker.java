@@ -14,6 +14,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.consumimurigni.stellarj.crypto.CryptoUtils;
+import com.consumimurigni.stellarj.role.IPeer;
 import com.consuminurigni.stellarj.common.Assert;
 import com.consuminurigni.stellarj.common.Tuple2;
 import com.consuminurigni.stellarj.common.VirtualClock;
@@ -109,7 +110,7 @@ public class Tracker {
 		return false;
 	}
 
-	void doesntHave(Peer peer) {
+	void doesntHave(IPeer peer) {
 		if (mLastAskedPeer.equals(peer)) {
 			log.trace("Overlay Does not have {}", () -> mItemHash.hexAbbrev());
 			tryNextPeer();

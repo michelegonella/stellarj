@@ -1,17 +1,15 @@
 package com.consumimurigni.stellarj.transactions;
 
-import com.consumimurigni.stellarj.ledger.AccountFrame;
-import com.consumimurigni.stellarj.ledger.LedgerManager;
-import com.consumimurigni.stellarj.ledger.xdr.AccountID;
-import com.consumimurigni.stellarj.ledger.xdr.SequenceNumber;
-import com.consumimurigni.stellarj.ledger.xdr.TransactionResult;
-import com.consumimurigni.stellarj.ledger.xdr.TransactionResultCode;
-import com.consumimurigni.stellarj.ledgerimpl.xdr.TransactionEnvelope;
-import com.consumimurigni.stellarj.main.Application;
+import javax.annotation.Nullable;
+
+import com.consumimurigni.stellarj.role.ILedgerManager;
 import com.consuminurigni.stellarj.metering.Metrics;
-import com.consuminurigni.stellarj.overlay.xdr.StellarMessage;
-import com.consuminurigni.stellarj.scp.xdr.SCPEnvelope;
+import com.consuminurigni.stellarj.xdr.AccountID;
 import com.consuminurigni.stellarj.xdr.Hash;
+import com.consuminurigni.stellarj.xdr.SequenceNumber;
+import com.consuminurigni.stellarj.xdr.TransactionEnvelope;
+import com.consuminurigni.stellarj.xdr.TransactionResult;
+import com.consuminurigni.stellarj.xdr.TransactionResultCode;
 import com.consuminurigni.stellarj.xdr.Uint64;
 
 public class TransactionFrame {
@@ -40,7 +38,7 @@ public class TransactionFrame {
 		return null;
 	}
 
-	public boolean checkValid(LedgerManager ledgerManager, Metrics metrics, SequenceNumber highSeq) {
+	public boolean checkValid(ILedgerManager ledgerManager, Metrics metrics, SequenceNumber highSeq) {
 		// TODO Auto-generated method stub
 		return false;
 	}
@@ -55,17 +53,18 @@ public class TransactionFrame {
 		return null;
 	}
 
-	public StellarMessage toStellarMessage() {
-		// TODO Auto-generated method stub
-		return null;
-	}
+	//TODO
+//	public StellarMessage toStellarMessage() {
+//		// TODO Auto-generated method stub
+//		return null;
+//	}
 
-	public static TransactionFrame makeTransactionFromWire(Hash networkID, TransactionEnvelope msg) {
+	public static @Nullable TransactionFrame makeTransactionFromWire(Hash networkID, TransactionEnvelope msg) {
 	    TransactionFrame res = new TransactionFrame(networkID, msg);
 	    return res;
 	}
 
-	public double getFeeRatio(LedgerManager lm) {
+	public double getFeeRatio(ILedgerManager lm) {
 		// TODO Auto-generated method stub
 		return 0;
 	}

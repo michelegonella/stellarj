@@ -30,7 +30,6 @@ import com.consumimurigni.stellarj.crypto.KeyUtils;
 import com.consumimurigni.stellarj.crypto.PubKeyUtils;
 import com.consumimurigni.stellarj.ledger.LedgerCloseData;
 import com.consumimurigni.stellarj.ledger.LedgerManager;
-import com.consumimurigni.stellarj.ledger.xdr.AccountID;
 import com.consumimurigni.stellarj.ledger.xdr.LedgerHeader;
 import com.consumimurigni.stellarj.ledger.xdr.LedgerHeaderHistoryEntry;
 import com.consumimurigni.stellarj.ledger.xdr.LedgerSCPMessages;
@@ -38,13 +37,13 @@ import com.consumimurigni.stellarj.ledger.xdr.LedgerUpgrade;
 import com.consumimurigni.stellarj.ledger.xdr.LedgerUpgradeType;
 import com.consumimurigni.stellarj.ledger.xdr.SCPHistoryEntry;
 import com.consumimurigni.stellarj.ledger.xdr.SCPHistoryEntryV0;
-import com.consumimurigni.stellarj.ledger.xdr.SequenceNumber;
 import com.consumimurigni.stellarj.ledger.xdr.StellarValue;
-import com.consumimurigni.stellarj.ledger.xdr.TransactionResultCode;
 import com.consumimurigni.stellarj.ledger.xdr.TransactionSet;
 import com.consumimurigni.stellarj.ledger.xdr.UpgradeType;
 import com.consumimurigni.stellarj.main.Application;
 import com.consumimurigni.stellarj.main.XDROutputFileStream;
+import com.consumimurigni.stellarj.role.IPeer;
+import com.consumimurigni.stellarj.role.ITxSetFrame;
 import com.consumimurigni.stellarj.scp.Herder;
 import com.consumimurigni.stellarj.scp.SCP;
 import com.consumimurigni.stellarj.scp.SCPDriver;
@@ -68,12 +67,15 @@ import com.consuminurigni.stellarj.scp.xdr.SCPBallot;
 import com.consuminurigni.stellarj.scp.xdr.SCPEnvelope;
 import com.consuminurigni.stellarj.scp.xdr.SCPQuorumSet;
 import com.consuminurigni.stellarj.scp.xdr.ValueSet;
+import com.consuminurigni.stellarj.xdr.AccountID;
 import com.consuminurigni.stellarj.xdr.EnvelopeType;
 import com.consuminurigni.stellarj.xdr.Hash;
 import com.consuminurigni.stellarj.xdr.Int64;
 import com.consuminurigni.stellarj.xdr.MessageType;
 import com.consuminurigni.stellarj.xdr.NodeID;
 import com.consuminurigni.stellarj.xdr.PublicKey;
+import com.consuminurigni.stellarj.xdr.SequenceNumber;
+import com.consuminurigni.stellarj.xdr.TransactionResultCode;
 import com.consuminurigni.stellarj.xdr.Uint256;
 import com.consuminurigni.stellarj.xdr.Uint32;
 import com.consuminurigni.stellarj.xdr.Uint64;
@@ -105,14 +107,6 @@ public class HerderImpl extends Herder {
 
 	// How many seconds of inactivity before evicting a node.
 	private static final Duration NODE_EXPIRATION_SECONDS = Duration.ofSeconds(240);
-
-	enum State {
-		HERDER_SYNCING_STATE, HERDER_TRACKING_STATE
-	};
-
-	enum TransactionSubmitStatus {
-		TX_STATUS_PENDING, TX_STATUS_DUPLICATE, TX_STATUS_ERROR, TX_STATUS_COUNT
-	};
 
 	////////////
 	private final SCP mSCP;
@@ -238,11 +232,12 @@ public class HerderImpl extends Herder {
 	private final Database database;
 	private final OverlayManager overlayManager;
 	private final PersistentState persistentState;
+	private final TransactionFrameToStellarMessage transactionFrameToStellarMessage;
 	////////////
-	public static HerderImpl create(Hash networkID, VirtualClock virtualClock, Config config, LedgerManager ledgerManager, Database database, JsonSerde jsonSerde,OverlayManager overlayManager, PersistentState persistentState, Metrics metrics) {
-		return new HerderImpl(networkID, virtualClock, config, ledgerManager, database, jsonSerde, overlayManager, persistentState, metrics);
+	public static HerderImpl create(Hash networkID, VirtualClock virtualClock, Config config, LedgerManager ledgerManager, Database database, JsonSerde jsonSerde,OverlayManager overlayManager, PersistentState persistentState, Metrics metrics, TransactionFrameToStellarMessage transactionFrameToStellarMessage) {
+		return new HerderImpl(networkID, virtualClock, config, ledgerManager, database, jsonSerde, overlayManager, persistentState, metrics, transactionFrameToStellarMessage);
 	}
-	private HerderImpl(Hash networkID, VirtualClock virtualClock, Config config, LedgerManager ledgerManager, Database database, JsonSerde jsonSerde,OverlayManager overlayManager, PersistentState persistentState, Metrics metrics) {
+	private HerderImpl(Hash networkID, VirtualClock virtualClock, Config config, LedgerManager ledgerManager, Database database, JsonSerde jsonSerde,OverlayManager overlayManager, PersistentState persistentState, Metrics metrics, TransactionFrameToStellarMessage transactionFrameToStellarMessage) {
 		this.metrics = metrics;
 		this.persistentState = persistentState;
 		this.jsonSerde = jsonSerde;
@@ -251,6 +246,7 @@ public class HerderImpl extends Herder {
 		this.config = config;
 		this.networkID = networkID;
 		this.virtualClock = virtualClock;
+		this.transactionFrameToStellarMessage = transactionFrameToStellarMessage;
 		mSCP = new SCP(this, config.NODE_SEED, config.NODE_IS_VALIDATOR, config.QUORUM_SET);
 		mPendingEnvelopes = new PendingEnvelopes(this, overlayManager, virtualClock, metrics, config);
 		mLastSlotSaved = Uint64.ZERO;
@@ -809,7 +805,7 @@ public class HerderImpl extends Herder {
 	                                 VirtualTimer::onFailureNoop);
 	}
 
-	TransactionSubmitStatus recvTransaction(TransactionFrame tx)
+	public TransactionSubmitStatus recvTransaction(TransactionFrame tx)
 	{
 //TODO	    soci::transaction sqltx(mApp.getDatabase().getSession());
 //	    mApp.getDatabase().setCurrentTransactionReadOnly();
@@ -914,8 +910,11 @@ public class HerderImpl extends Herder {
 	    return status;
 	}
 
-	void sendSCPStateToPeer(Uint32 ledgerSeq, Peer peer)
+	@Override
+	public
+	void sendSCPStateToPeer(Uint32 ledgerSeq, IPeer ipeer)
 	{
+		Peer peer = (Peer)ipeer;//TODO
 	    Uint32 minSeq;
 	    Uint32 maxSeq;
 
@@ -1115,24 +1114,31 @@ public class HerderImpl extends Herder {
 	    }
 	}
 
+	@Override
+	public
 	boolean recvSCPQuorumSet(Hash hash, SCPQuorumSet qset)
 	{
 	    return mPendingEnvelopes.recvSCPQuorumSet(hash, qset);
 	}
 
-	boolean recvTxSet(Hash hash, TxSetFrame t)
+	@Override
+	public
+	boolean recvTxSet(Hash hash, ITxSetFrame t)
 	{
 	    TxSetFrame txset = new TxSetFrame(t);
 	    return mPendingEnvelopes.recvTxSet(hash, txset);
 	}
 
-	void peerDoesntHave(MessageType type, Hash/*c++ Uint256*/ itemID,
-	                           Peer peer)
+	@Override
+	public
+	void peerDoesntHave(MessageType type, Uint256 itemID,
+			IPeer peer)
 	{
 	    mPendingEnvelopes.peerDoesntHave(type, itemID, peer);
 	}
 
-	TxSetFrame getTxSet(Hash hash)
+	@Override
+	public TxSetFrame getTxSet(Hash hash)
 	{
 	    return mPendingEnvelopes.getTxSet(hash);
 	}
@@ -1743,7 +1749,7 @@ public class HerderImpl extends Herder {
 	        }
 	        for (TransactionFrame tx : toBroadcast.sortForApply())
 	        {
-	        	StellarMessage msg = tx.toStellarMessage();
+	        	StellarMessage msg = transactionFrameToStellarMessage.apply(tx);
 	            overlayManager.broadcastMessage(msg);
 	        }
 	    }

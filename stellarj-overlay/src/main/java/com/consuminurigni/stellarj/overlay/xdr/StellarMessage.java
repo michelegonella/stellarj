@@ -6,10 +6,12 @@ package com.consuminurigni.stellarj.overlay.xdr;
 
 import java.io.IOException;
 
+import com.consumimurigni.stellarj.role.ITransactionSet;
 import com.consuminurigni.stellarj.scp.xdr.SCPEnvelope;
 import com.consuminurigni.stellarj.scp.xdr.SCPQuorumSet;
 import com.consuminurigni.stellarj.xdr.Encodable;
 import com.consuminurigni.stellarj.xdr.MessageType;
+import com.consuminurigni.stellarj.xdr.TransactionEnvelope;
 import com.consuminurigni.stellarj.xdr.Uint256;
 import com.consuminurigni.stellarj.xdr.Uint32;
 import com.consuminurigni.stellarj.xdr.XdrDataInputStream;
@@ -103,18 +105,18 @@ public class StellarMessage implements Encodable {
   public void setTxSetHash(Uint256 value) {
     this.txSetHash = value;
   }
-  private AbstractTransactionSet txSet;
-  public AbstractTransactionSet getTxSet() {
+  private ITransactionSet txSet;
+  public ITransactionSet getTxSet() {
     return this.txSet;
   }
-  public void setTxSet(AbstractTransactionSet value) {
+  public void setTxSet(ITransactionSet value) {
     this.txSet = value;
   }
-  private AbstractTransactionEnvelope transaction;
-  public AbstractTransactionEnvelope getTransaction() {
+  private TransactionEnvelope transaction;
+  public TransactionEnvelope getTransaction() {
     return this.transaction;
   }
-  public void setTransaction(AbstractTransactionEnvelope value) {
+  public void setTransaction(TransactionEnvelope value) {
     this.transaction = value;
   }
   private Uint256 qSetHash;
@@ -173,10 +175,10 @@ public class StellarMessage implements Encodable {
   Uint256.encode(stream, encodedStellarMessage.txSetHash);
   break;
   case TX_SET:
-  AbstractTransactionSet.encode(stream, encodedStellarMessage.txSet);
+  ITransactionSet.encode(stream, encodedStellarMessage.txSet);
   break;
   case TRANSACTION:
-  AbstractTransactionEnvelope.encode(stream, encodedStellarMessage.transaction);
+  TransactionEnvelope.encode(stream, encodedStellarMessage.transaction);
   break;
   case GET_SCP_QUORUMSET:
   Uint256.encode(stream, encodedStellarMessage.qSetHash);
@@ -222,10 +224,10 @@ public class StellarMessage implements Encodable {
   decodedStellarMessage.txSetHash = Uint256.decode(stream);
   break;
   case TX_SET:
-  decodedStellarMessage.txSet = AbstractTransactionSet.decode(stream);
+  decodedStellarMessage.txSet = ITransactionSet.decode(stream);
   break;
   case TRANSACTION:
-  decodedStellarMessage.transaction = AbstractTransactionEnvelope.decode(stream);
+  decodedStellarMessage.transaction = TransactionEnvelope.decode(stream);
   break;
   case GET_SCP_QUORUMSET:
   decodedStellarMessage.qSetHash = Uint256.decode(stream);

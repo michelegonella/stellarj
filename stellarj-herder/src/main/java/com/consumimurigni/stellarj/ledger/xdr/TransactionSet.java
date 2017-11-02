@@ -6,9 +6,10 @@ package com.consumimurigni.stellarj.ledger.xdr;
 
 import java.io.IOException;
 
-import com.consumimurigni.stellarj.ledgerimpl.xdr.TransactionEnvelope;
+import com.consumimurigni.stellarj.role.ITransactionSet;
 import com.consuminurigni.stellarj.xdr.Encodable;
 import com.consuminurigni.stellarj.xdr.Hash;
+import com.consuminurigni.stellarj.xdr.TransactionEnvelope;
 import com.consuminurigni.stellarj.xdr.XdrDataInputStream;
 import com.consuminurigni.stellarj.xdr.XdrDataOutputStream;
 
@@ -21,7 +22,7 @@ import com.consuminurigni.stellarj.xdr.XdrDataOutputStream;
 //  };
 
 //  ===========================================================================
-public class TransactionSet implements Encodable {
+public class TransactionSet implements Encodable, ITransactionSet {
   public TransactionSet () {}
   private Hash previousLedgerHash;
   public Hash getPreviousLedgerHash() {

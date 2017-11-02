@@ -1,10 +1,6 @@
-package com.consumimurigni.stellarj.ledger.xdr;
+package com.consuminurigni.stellarj.xdr;
 
 import java.io.IOException;
-
-import com.consuminurigni.stellarj.xdr.Uint64;
-import com.consuminurigni.stellarj.xdr.XdrDataInputStream;
-import com.consuminurigni.stellarj.xdr.XdrDataOutputStream;
 
 public class SequenceNumber extends Uint64 {
 	private static final long serialVersionUID = -4764230025848350065L;

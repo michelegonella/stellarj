@@ -6,8 +6,8 @@ package com.consumimurigni.stellarj.ledgerimpl.xdr;
 
 import java.io.IOException;
 
-import com.consumimurigni.stellarj.ledger.xdr.AccountID;
 import com.consumimurigni.stellarj.ledger.xdr.Signer;
+import com.consuminurigni.stellarj.xdr.AccountID;
 import com.consuminurigni.stellarj.xdr.String32;
 import com.consuminurigni.stellarj.xdr.Uint32;
 import com.consuminurigni.stellarj.xdr.XdrDataInputStream;

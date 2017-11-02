@@ -55,8 +55,7 @@ public class Uint32 extends XdrInteger {
 		return uint32 != uint.uint32;
 	}
 
-	@SuppressWarnings("unused")
-	private boolean eq(int i) {
+	public boolean eq(int i) {
 		return i >= 0 && uint32 == i;
 	}
 

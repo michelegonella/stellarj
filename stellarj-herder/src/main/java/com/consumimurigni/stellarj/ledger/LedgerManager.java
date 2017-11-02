@@ -1,9 +1,10 @@
 package com.consumimurigni.stellarj.ledger;
 
 import com.consumimurigni.stellarj.ledger.xdr.LedgerHeaderHistoryEntry;
+import com.consumimurigni.stellarj.role.ILedgerManager;
 import com.consuminurigni.stellarj.xdr.Uint32;
 
-public class LedgerManager {
+public class LedgerManager implements ILedgerManager {
 	public enum State
 	    {
 	        // Loading state from database, not yet active

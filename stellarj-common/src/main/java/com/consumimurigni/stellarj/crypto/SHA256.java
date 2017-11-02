@@ -39,7 +39,7 @@ public class SHA256 {
     hkdfExtract(byte[] bin)
     {
     	HmacSha256Key zerosalt = HmacSha256Key.of(new byte[32]);
-        byte[] mac = CryptoUtils.hmacSHA256(zerosalt, bin);
+        byte[] mac = CryptoUtils.hmacSHA256(zerosalt, bin).getMac();
         return HmacSha256Key.of(mac);
     }
 
@@ -51,7 +51,7 @@ public class SHA256 {
     	Assert.assertTrue(key.getKey().length == 32);
     	byte[] b2 = Arrays.copyOf(bin, bin.length + 1);
     	b2[bin.length] = 0x1;
-        return HmacSha256Key.of(CryptoUtils.hmacSHA256(key, b2));
+        return HmacSha256Key.of(CryptoUtils.hmacSHA256(key, b2).getMac());
     }
 
 }
